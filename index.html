@@ -60,8 +60,6 @@ let gameStarted = false;
 let level = 1;
 
 // Música de fondo
-let audio = new Audio('Background.mp3');
-audio.loop = true;
 
 // ===== Inicialización =====
 function initGame(){
@@ -153,6 +151,8 @@ const backMenuBtn = document.getElementById('backMenuBtn');
 const retryBtn = document.getElementById('retryBtn');
 const menuBtn = document.getElementById('menuBtn');
 
+let Level1 = new Audio('Level1.mp3');
+  
 playBtn.addEventListener('click', ()=>{ menuDiv.style.display='none'; levelSelectDiv.style.display='flex'; });
 backMenuBtn.addEventListener('click', ()=>{ levelSelectDiv.style.display='none'; menuDiv.style.display='flex'; });
 levelBtns.forEach(btn=>btn.addEventListener('click', ()=>{
@@ -165,22 +165,24 @@ menuBtn.addEventListener('click', ()=>{ gameOverDiv.style.display='none'; menuDi
 const startScreen = document.getElementById('startScreen');
 const startBtn = document.getElementById('startBtn');
 const menuDiv = document.getElementById('menu');
-startBtn.addEventListener('click', ()=>{
+let audio2 = new Audio('Background.mp3');
+audio2.loop = true;
+  startBtn.addEventListener('click', ()=>{
     // Ocultar pantalla de inicio
     startScreen.style.display = 'none';
     // Mostrar menú principal
     menuDiv.style.display = 'flex';
     // Reproducir música
-    audio.play();
+    audio2.play();
 });
 
-function startGame(){
+function startGame(lv){
   gameOverDiv.style.display='none';
   if(!scene) initGame();
   player.position.set(-5,0.5,0);
   velocityY=0; isJumping=false; gameStarted=true;
   generateObstacles();
-  audio.play();
+  lv.play()
 }
 </script>
 </body>
