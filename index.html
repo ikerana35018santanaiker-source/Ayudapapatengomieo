@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Geometry Dash 3D Clone</title>
+<title>Geometry Dash 3D</title>
 <style>
 body, html { margin:0; padding:0; overflow:hidden; background:#222; font-family:sans-serif; }
 canvas { display:block; }
@@ -73,7 +73,7 @@ let player, obstacles=[];
 let speed=0.15, jumpForce=0.35, gravity=-0.02, velocityY=0;
 let isJumping=false, gameStarted=false;
 let level=1;
-let levelLength=120; // longitud del nivel para progress bar
+let levelLength=120;
 
 // Música
 let menuAudio = new Audio('Background.mp3'); menuAudio.loop=true;
@@ -206,7 +206,7 @@ function initGame(){
   player.position.set(-5,0.5,0);
   scene.add(player);
 
-  generateObstacles();
+  generateObstaclesForLevel(level);
 
   camera.position.set(-10,5,10);
   camera.lookAt(player.position);
@@ -217,35 +217,46 @@ function initGame(){
   animateGame();
 }
 
-function generateObstacles(){
+// ===== Obstáculos por nivel =====
+function generateObstaclesForLevel(level){
   obstacles.forEach(obs=>scene.remove(obs));
   obstacles=[];
-  let posX=10;
+  let posX = 10;
+
   for(let i=0;i<30;i++){
-    const type = Math.random()<0.3?'spike':'cube';
+    let type;
+    let color = 0xff0000;
+    if(level===1){ type = Math.random()<0.3?'spike':'cube'; color=0xff0000; }
+    if(level===2){ type = Math.random()<0.4?'spike':'cube'; color=0x00ffff; }
+    if(level===3){ type = Math.random()<0.5?'spike':'cube'; color=0xffff00; }
+
     let obs;
+    let baseY = 0.5;
     if(type==='cube'){
       const geo = new THREE.BoxGeometry(1,1,1);
-      const mat = new THREE.MeshPhongMaterial({color:0xff0000});
+      const mat = new THREE.MeshPhongMaterial({color:color});
       obs = new THREE.Mesh(geo,mat);
-      obs.position.y = 0.5;
+      obs.position.y = baseY;
     } else {
       const geo = new THREE.ConeGeometry(0.5,1,4);
       const mat = new THREE.MeshPhongMaterial({color:0x0000ff});
       obs = new THREE.Mesh(geo,mat);
-      obs.position.y = 0.5;
+      obs.position.y = baseY;
       obs.rotation.z = Math.PI;
+      obs.scale.y = 1 + Math.random();
     }
-    obs.position.y += Math.random()*1.5;
+
     posX += 3 + Math.random()*4;
     obs.position.x = posX;
     obs.position.z = 0;
     scene.add(obs);
     obstacles.push(obs);
   }
+
   levelLength = posX + 5;
 }
 
+// ===== Movimiento jugador =====
 function jumpPlayer(){ if(!isJumping){ velocityY=jumpForce; isJumping=true; } }
 
 function animateGame(){
@@ -262,7 +273,6 @@ function animateGame(){
       }
     });
 
-    // Progress bar
     let progress = (player.position.x + 5)/levelLength;
     if(progress>1) progress=1;
     progressBar.style.width = (progress*100)+'%';
@@ -283,7 +293,7 @@ function startGame(){
   if(!scene) initGame();
   player.position.set(-5,0.5,0);
   velocityY=0; isJumping=false; gameStarted=true;
-  generateObstacles();
+  generateObstaclesForLevel(level);
 }
 </script>
 </body>
