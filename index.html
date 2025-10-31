@@ -264,7 +264,12 @@ function generateObstaclesForLevel(level){
 }
 
 // ==== Movimiento jugador ====
-function jumpPlayer(){ if(!isJumping && !isAscending){ velocityY=jumpForce; isJumping=true; } }
+function jumpPlayer() {
+  if (!isJumping && !isAscending) {
+    velocityY = jumpForce;
+    isJumping = true;
+  }
+}
 
 let finalAnim=false;
 function animateGame(){
