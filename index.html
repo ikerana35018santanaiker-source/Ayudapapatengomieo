@@ -275,71 +275,92 @@ function jumpPlayer() {
 }
 
 let finalAnim=false;
-function animateGame(){
+function animateGame() {
   requestAnimationFrame(animateGame);
-  if(gameStarted){
-    // Mover jugador
-    player.position.x+=speed;
 
-    if(isAscending) velocityY+=-0.02;
-    else velocityY+=gravity;
+  if (gameStarted) {
+    // Mover jugador horizontalmente
+    player.position.x += speed;
 
-    player.position.y+=velocityY;
+    if (isAscending) {
+      // ===== Modo avión / portal =====
+      velocityY += -0.02; // gravedad más suave
+      player.position.y += velocityY;
 
-    if(!isAscending && player.position.y<=0.5){ player.position.y=0.5; velocityY=0; isJumping=false; }
-
-    // Colisiones obstáculos
-    obstacles.forEach(obs=>{
-      if(player.position.x+0.5>obs.position.x-0.5 && player.position.x-0.5<obs.position.x+0.5){
-        if(player.position.y-0.5<obs.position.y+0.5) gameOver();
-      }
-    });
-
-    // Colisiones plataforma/portal
-    // Colisión plataforma
-if(platform){
-  const px=platform.position.x, py=platform.position.y;
-  if(player.position.x>px-2 && player.position.x<px+2){
-    if(!isAscending){ // solo activa colisión mortal si no estás en el portal
-      if(player.position.y+0.5>py+0.25 || player.position.y-0.5<py-0.25){
-        gameOver();
-      } else {
-        isAscending = true; // entra al portal
-        velocityY = 0;
-      }
-    }
-  }
-}
-    if(portals.length){
-      portals.forEach(port=>{
-        if(player.position.x>port.position.x-0.5 && player.position.x<port.position.x+0.5){
-          if(player.position.y>port.position.y-0.5 && player.position.y<port.position.y+0.5){
-            if(port===portals[0]) isAscending=true; // primer portal mitad nivel
-            if(port===portals[1]) isAscending=false; // portal final vuelve a normal
+      // Colisiones con paredes del portal
+      portals.forEach(port => {
+        const px = port.position.x, py = port.position.y;
+        if (player.position.x > px - 0.5 && player.position.x < px + 0.5) {
+          if (player.position.y + 0.5 > py + 0.5 || player.position.y - 0.5 < py - 0.5) {
+            gameOver(); // choca con pared del portal
           }
         }
       });
+
+    } else {
+      // ===== Movimiento normal =====
+      velocityY += gravity;
+      player.position.y += velocityY;
+
+      if (player.position.y <= 0.5) {
+        player.position.y = 0.5;
+        velocityY = 0;
+        isJumping = false;
+      }
+
+      // Colisiones normales con obstáculos
+      obstacles.forEach(obs => {
+        if (player.position.x + 0.5 > obs.position.x - 0.5 &&
+            player.position.x - 0.5 < obs.position.x + 0.5) {
+          if (player.position.y - 0.5 < obs.position.y + 0.5) {
+            gameOver();
+          }
+        }
+      });
+
+      // Colisiones con plataforma / portal a mitad de nivel
+      if (platform) {
+        const px = platform.position.x, py = platform.position.y;
+        if (player.position.x > px - 2 && player.position.x < px + 2) {
+          if (player.position.y - 0.5 < py + 0.25 && player.position.y - 0.5 > py - 0.25) {
+            isAscending = true; // entra al portal
+            velocityY = 0;
+            ascendStartY = player.position.y;
+          } else if (player.position.y + 0.5 > py + 0.25) {
+            gameOver(); // toca la parte superior de la plataforma
+          }
+        }
+      }
     }
 
     // Progress bar
-    let progress=(player.position.x+5)/levelLength; if(progress>1) progress=1;
-    progressBar.style.width=(progress*100)+'%';
+    let progress = (player.position.x + 5) / levelLength;
+    if (progress > 1) progress = 1;
+    progressBar.style.width = (progress * 100) + '%';
 
-    // Cámara lateral 2D
-    camera.position.x=player.position.x; camera.position.y=3; camera.position.z=20;
-    camera.lookAt(player.position.x, 2, 0);
+    // Cámara lateral 2D con zoom
+    camera.position.x = player.position.x - 10;
+    camera.position.y = 3;
+    camera.position.z = 5;
+    camera.lookAt(player.position.x, player.position.y, 0);
 
-    // ==== Final del nivel ====
-    if(player.position.x>=levelLength && !finalAnim){
-      finalAnim=true; gameStarted=false; velocityY=0;
+    // ===== Final del nivel =====
+    if (player.position.x >= levelLength && !finalAnim) {
+      finalAnim = true;
+      gameStarted = false;
+      velocityY = 0;
     }
-    if(finalAnim){
-      player.rotation.z+=0.2;
-      player.position.y+=0.1;
-      player.material.opacity-=0.01;
+
+    // Animación final: cubo gira y sube con transparencia
+    if (finalAnim) {
+      player.rotation.z += 0.2;
+      player.position.y += 0.1;
+      player.material.opacity -= 0.01;
+      if (player.material.opacity <= 0) player.material.opacity = 0;
     }
   }
-  renderer.render(scene,camera);
+
+  renderer.render(scene, camera);
 }
 
 function gameOver(){
