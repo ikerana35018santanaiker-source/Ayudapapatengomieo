@@ -269,28 +269,27 @@ const progressBar = document.getElementById('progressBar');
 const levelLength = 100; // distancia total del nivel
 
 function animateGame(){
-  requestAnimationFrame(animateGame);
-  if(gameStarted){
-    player.position.x += speed;
-    velocityY += gravity;
-    player.position.y += velocityY;
-    if(player.position.y<=0.5){ player.position.y=0.5; velocityY=0; isJumping=false; }
+    requestAnimationFrame(animateGame);
 
-    obstacles.forEach(obs=>{
-      if(player.position.x+0.5>obs.position.x-0.5 && player.position.x-0.5<obs.position.x+0.5){
-        if(player.position.y-0.5<obs.position.y+0.5){ gameOver(); }
-      }
-    });
+    if(gameStarted){
+        // Movimiento horizontal
+        player.position.x += speed;
 
-    // Actualiza progress bar
-    let progress = (player.position.x + 5) / levelLength; // +5 por offset inicial
-    if(progress>1) progress=1;
-    progressBar.style.width = (progress*100)+'%';
+        // Movimiento vertical
+        velocityY += gravity;
+        player.position.y += velocityY;
 
-    camera.position.x = player.position.x - 10;
-    camera.lookAt(player.position);
-  }
-  renderer.render(scene,camera);
+        // Suelo
+        if(player.position.y <= 0.5){
+            player.position.y = 0.5;
+            velocityY = 0;
+            isJumping = false;
+        }
+
+        // Detectar colisiones con obstáculos...
+    }
+
+    renderer.render(scene,camera);
 }
 
 function gameOver(){
