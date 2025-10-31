@@ -339,9 +339,9 @@ function animateGame() {
     progressBar.style.width = (progress * 100) + '%';
 
     // Cámara lateral 2D con zoom
-    camera.position.x = player.position.x - 10;
+    camera.position.x = player.position.x;
     camera.position.y = 3;
-    camera.position.z = 5;
+    camera.position.z = 20;
     camera.lookAt(player.position.x, player.position.y, 0);
 
     // ===== Final del nivel =====
