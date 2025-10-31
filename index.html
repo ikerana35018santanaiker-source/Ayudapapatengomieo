@@ -222,7 +222,7 @@ function initGame(){
 function generateObstacles(){
   obstacles.forEach(obs=>scene.remove(obs));
   obstacles=[];
-  let posX = 10;
+  let posX = 25;
 
   for(let i=0;i<30;i++){
     const type = Math.random() < 0.3 ? 'spike' : 'cube'; // 30% pinchos
