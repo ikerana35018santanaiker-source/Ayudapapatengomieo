@@ -157,6 +157,29 @@ levelBtns.forEach(btn=>{
   });
 });
 
+// Colisión con portal amarillo (modo avión)
+portals.forEach(port => {
+  const px = port.position.x, py = port.position.y;
+
+  // Si el jugador está dentro de la X del portal
+  if (player.position.x > px - 0.5 && player.position.x < px + 0.5) {
+
+    // Entrar al portal solo si pasa por abajo
+    if (!isAscending && player.position.y - 0.5 < py) {
+      isAscending = true;
+      velocityY = 0;
+      ascendStartY = player.position.y;
+    }
+
+    // Muerte si chocas con pared superior o inferior
+    if (isAscending) {
+      if (player.position.y + 0.5 > py + 0.5 || player.position.y - 0.5 < py - 0.5) {
+        gameOver();
+      }
+    }
+  }
+});
+
 retryBtn.addEventListener('click', ()=>{
   if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; levelAudio.play(); }
   gameOverDiv.style.display='none';
