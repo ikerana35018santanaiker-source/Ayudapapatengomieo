@@ -193,8 +193,16 @@ function initGame(){
 
   generateObstaclesForLevel(level);
 
-  window.addEventListener('mousedown', jumpPlayer);
-  window.addEventListener('touchstart', jumpPlayer);
+  // Click o touch (ya lo tienes)
+window.addEventListener('mousedown', jumpPlayer);
+window.addEventListener('touchstart', jumpPlayer);
+
+// Tecla SPACE
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    jumpPlayer();
+  }
+});
   window.addEventListener('keydown',(e)=>{ if(isAscending && e.code==='Space') velocityY=0.35; });
 
   animateGame();
