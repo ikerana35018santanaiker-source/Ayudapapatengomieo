@@ -70,7 +70,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.0/build/three.m
 // ===== Variables globales =====
 let scene, camera, renderer;
 let player, obstacles=[];
-let speed=0.15, jumpForce=0.35, gravity=-0.02, velocityY=0;
+let speed=0.07, jumpForce=0.35, gravity=-0.02, velocityY=0;
 let isJumping=false, gameStarted=false;
 let level=1;
 let levelLength=120;
@@ -243,7 +243,7 @@ function generateObstaclesForLevel(level){
       obs = new THREE.Mesh(geo,mat);
       obs.position.y = baseY;
       obs.rotation.z = Math.PI;
-      obs.scale.y = 1 + Math.random();
+      obs.scale.y = 1;
     }
 
     posX += 3 + Math.random()*4;
