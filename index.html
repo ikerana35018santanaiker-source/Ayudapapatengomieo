@@ -5,22 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Geometry Dash 3D Clone</title>
 <style>
-  body, html { margin:0; padding:0; overflow:hidden; background:#222; font-family:sans-serif; }
-  canvas { display:block; }
+body, html { margin:0; padding:0; overflow:hidden; background:#222; font-family:sans-serif; }
+canvas { display:block; }
 
-  /* Pantallas */
-  #startScreen, #menu, #levelSelect, #gameOver { 
-    position:absolute; top:0; left:0; width:100%; height:100%; 
-    display:flex; justify-content:center; align-items:center; flex-direction:column; 
-    color:white; z-index:10; 
-  }
-  #startScreen { background:#222; }
-  #menu { display:none; background:rgba(0,0,0,0.7); }
-  #levelSelect, #gameOver { display:none; background:rgba(0,0,0,0.7); }
+/* Pantallas */
+#startScreen, #menu, #levelSelect, #gameOver { 
+  position:absolute; top:0; left:0; width:100%; height:100%; 
+  display:flex; justify-content:center; align-items:center; flex-direction:column; 
+  color:white; z-index:10; 
+}
+#startScreen { background:#222; }
+#menu { display:none; background:rgba(0,0,0,0.7); }
+#levelSelect, #gameOver { display:none; background:rgba(0,0,0,0.7); }
 
-  /* Botones */
-  button { padding:15px 30px; margin:10px; font-size:1em; border:none; border-radius:10px; background:#ffcc00; color:#222; cursor:pointer; transition: transform 0.2s; }
-  button:hover { transform: scale(1.1); }
+/* Botones */
+button { padding:15px 30px; margin:10px; font-size:1em; border:none; border-radius:10px; background:#ffcc00; color:#222; cursor:pointer; transition: transform 0.2s; }
+button:hover { transform: scale(1.1); }
+
+/* Progress bar */
+#progressContainer { position:absolute; top:10px; left:10px; width:80%; height:20px; background:#555; border-radius:10px; z-index:15; }
+#progressBar { width:0%; height:100%; background:#ffcc00; border-radius:10px; }
 </style>
 </head>
 <body>
@@ -28,11 +32,6 @@
 <!-- Pantalla de inicio -->
 <div id="startScreen">
   <button id="startBtn" style="font-size:2em;padding:20px 40px;">Empezar</button>
-</div>
-
-  <!-- Progress bar -->
-<div id="progressContainer" style="position:absolute;top:10px;left:10px;width:80%;height:20px;background:#555;border-radius:10px;">
-  <div id="progressBar" style="width:0%;height:100%;background:#ffcc00;border-radius:10px;"></div>
 </div>
 
 <!-- Menú principal -->
@@ -60,19 +59,21 @@
   <button id="menuBtn">Menu</button>
 </div>
 
+<!-- Progress bar -->
+<div id="progressContainer">
+  <div id="progressBar"></div>
+</div>
+
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.0/build/three.module.js';
 
 // ===== Variables globales =====
 let scene, camera, renderer;
-let player, obstacles = [];
-let gravity = -0.02;      // más fuerte que antes
-let jumpForce = 0.35;     // impulso al saltar
-let velocityY = 0;
-let isJumping = false;
-
-let gameStarted = false;
-let level = 1;
+let player, obstacles=[];
+let speed=0.15, jumpForce=0.35, gravity=-0.02, velocityY=0;
+let isJumping=false, gameStarted=false;
+let level=1;
+let levelLength=120; // longitud del nivel para progress bar
 
 // Música
 let menuAudio = new Audio('Background.mp3'); menuAudio.loop=true;
@@ -89,6 +90,7 @@ const backMenuBtn = document.getElementById('backMenuBtn');
 const retryBtn = document.getElementById('retryBtn');
 const menuBtn = document.getElementById('menuBtn');
 const levelBtns = document.querySelectorAll('.levelBtn');
+const progressBar = document.getElementById('progressBar');
 
 // ===== Menú animado =====
 let menuScene, menuCamera, menuRenderer, menuCube, menuObstacles=[];
@@ -99,23 +101,20 @@ function initMenuAnimation(){
   menuRenderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
   menuRenderer.setSize(window.innerWidth, window.innerHeight);
 
-  // Luz
   const light = new THREE.DirectionalLight(0xffffff,1);
   light.position.set(5,10,5);
   menuScene.add(light);
 
-  // Cubo saltando
   const cubeGeo = new THREE.BoxGeometry(1,1,1);
   const cubeMat = new THREE.MeshPhongMaterial({color:0xff0000});
-  menuCube = new THREE.Mesh(cubeGeo, cubeMat);
+  menuCube = new THREE.Mesh(cubeGeo,cubeMat);
   menuCube.position.set(-5,0.5,0);
   menuScene.add(menuCube);
 
-  // Obstáculos
   for(let i=0;i<10;i++){
-    const obsGeo = new THREE.BoxGeometry(1,1,1);
-    const obsMat = new THREE.MeshPhongMaterial({color:0x00ff00});
-    const obs = new THREE.Mesh(obsGeo,obsMat);
+    const geo = new THREE.BoxGeometry(1,1,1);
+    const mat = new THREE.MeshPhongMaterial({color:0x00ff00});
+    const obs = new THREE.Mesh(geo,mat);
     obs.position.set(i*5+5,0.5,0);
     menuScene.add(obs);
     menuObstacles.push(obs);
@@ -123,23 +122,20 @@ function initMenuAnimation(){
 
   menuCamera.position.set(-10,5,10);
   menuCamera.lookAt(menuCube.position);
-
   animateMenu();
 }
 
 let menuVelocityY = 0;
 function animateMenu(){
   requestAnimationFrame(animateMenu);
-  // Cubo saltando animado
-  menuVelocityY += -0.01; // gravedad
+  menuVelocityY += -0.01;
   menuCube.position.y += menuVelocityY;
-  if(menuCube.position.y <=0.5){ menuCube.position.y=0.5; menuVelocityY=0.2; }
-  // Obstáculos se mueven al fondo
+  if(menuCube.position.y<=0.5){ menuCube.position.y=0.5; menuVelocityY=0.2; }
   menuObstacles.forEach(obs=>{
     obs.position.x -= speed/2;
-    if(obs.position.x < -10) obs.position.x += 50;
+    if(obs.position.x<-10) obs.position.x+=50;
   });
-  menuRenderer.render(menuScene, menuCamera);
+  menuRenderer.render(menuScene,menuCamera);
 }
 
 // ===== Eventos UI =====
@@ -162,10 +158,8 @@ backMenuBtn.addEventListener('click', ()=>{
 
 levelBtns.forEach(btn=>{
   btn.addEventListener('click', ()=>{
-    level = parseInt(btn.dataset.level);
-    // Pausar música del menú
+    level=parseInt(btn.dataset.level);
     menuAudio.pause(); menuAudio.currentTime=0;
-    // Música del nivel
     if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; }
     levelAudio = new Audio(`Level${level}.mp3`);
     levelAudio.loop=true;
@@ -226,76 +220,62 @@ function initGame(){
 function generateObstacles(){
   obstacles.forEach(obs=>scene.remove(obs));
   obstacles=[];
-  let posX = 25;
-
+  let posX=10;
   for(let i=0;i<30;i++){
-    const type = Math.random() < 0.3 ? 'spike' : 'cube'; // 30% pinchos
+    const type = Math.random()<0.3?'spike':'cube';
     let obs;
-
     if(type==='cube'){
       const geo = new THREE.BoxGeometry(1,1,1);
       const mat = new THREE.MeshPhongMaterial({color:0xff0000});
-      obs = new THREE.Mesh(geo, mat);
+      obs = new THREE.Mesh(geo,mat);
       obs.position.y = 0.5;
     } else {
-      const geo = new THREE.ConeGeometry(0.5,1,4); // pincho
+      const geo = new THREE.ConeGeometry(0.5,1,4);
       const mat = new THREE.MeshPhongMaterial({color:0x0000ff});
-      obs = new THREE.Mesh(geo, mat);
-      obs.position.y = 0.5; 
-      obs.rotation.z = Math.PI; // pincho hacia arriba
+      obs = new THREE.Mesh(geo,mat);
+      obs.position.y = 0.5;
+      obs.rotation.z = Math.PI;
     }
-
-    // Variación de altura (0.5 a 2)
     obs.position.y += Math.random()*1.5;
-    // Distancia aleatoria entre 3 y 7
     posX += 3 + Math.random()*4;
     obs.position.x = posX;
     obs.position.z = 0;
-
     scene.add(obs);
     obstacles.push(obs);
   }
+  levelLength = posX + 5;
 }
 
-function jumpPlayer(){
-    // Permitir saltar si tocando suelo
-    if(!isJumping){
-        velocityY = jumpForce;
-        isJumping = true;
-    }
-}
-
-const progressBar = document.getElementById('progressBar');
-const levelLength = 100; // distancia total del nivel
+function jumpPlayer(){ if(!isJumping){ velocityY=jumpForce; isJumping=true; } }
 
 function animateGame(){
-    requestAnimationFrame(animateGame);
+  requestAnimationFrame(animateGame);
+  if(gameStarted){
+    player.position.x += speed;
+    velocityY += gravity;
+    player.position.y += velocityY;
+    if(player.position.y<=0.5){ player.position.y=0.5; velocityY=0; isJumping=false; }
 
-    if(gameStarted){
-        // Movimiento horizontal
-        player.position.x += speed;
+    obstacles.forEach(obs=>{
+      if(player.position.x+0.5>obs.position.x-0.5 && player.position.x-0.5<obs.position.x+0.5){
+        if(player.position.y-0.5<obs.position.y+0.5){ gameOver(); }
+      }
+    });
 
-        // Movimiento vertical
-        velocityY += gravity;
-        player.position.y += velocityY;
+    // Progress bar
+    let progress = (player.position.x + 5)/levelLength;
+    if(progress>1) progress=1;
+    progressBar.style.width = (progress*100)+'%';
 
-        // Suelo
-        if(player.position.y <= 0.5){
-            player.position.y = 0.5;
-            velocityY = 0;
-            isJumping = false;
-        }
-
-        // Detectar colisiones con obstáculos...
-    }
-
-    renderer.render(scene,camera);
+    camera.position.x = player.position.x-10;
+    camera.lookAt(player.position);
+  }
+  renderer.render(scene,camera);
 }
 
 function gameOver(){
   gameStarted=false;
   gameOverDiv.style.display='flex';
-  levelAudio.pause()
 }
 
 function startGame(){
