@@ -202,13 +202,12 @@ window.addEventListener('touchstart', jumpPlayer);
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') {
     if (isAscending) {
-      velocityY = 0.35; // fuerza para subir en el portal/avión
+      velocityY = 0.35; // fuerza para subir en portal
     } else {
-      jumpPlayer(); // salto normal
+      jumpPlayer();     // salto normal
     }
   }
 });
-  window.addEventListener('keydown',(e)=>{ if(isAscending && e.code==='Space') velocityY=0.35; });
 
   animateGame();
 }
@@ -268,7 +267,6 @@ function generateObstaclesForLevel(level){
   levelLength=posX+5;
 }
 
-// ==== Movimiento jugador ====
 function jumpPlayer() {
   if (!isJumping && !isAscending) {
     velocityY = jumpForce;
