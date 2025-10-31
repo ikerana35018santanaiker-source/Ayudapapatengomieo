@@ -18,6 +18,15 @@ canvas { display:block; }
 #menu { display:none; background:rgba(0,0,0,0.7); }
 #levelSelect, #gameOver { display:none; background:rgba(0,0,0,0.7); }
 
+#loadingScreen {
+  transition: opacity 1s ease;
+}
+
+#loadingScreen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+  
 /* Botones */
 button { padding:15px 30px; margin:10px; font-size:1em; border:none; border-radius:10px; background:#ffcc00; color:#222; cursor:pointer; transition: transform 0.2s; }
 button:hover { transform: scale(1.1); }
@@ -28,6 +37,12 @@ button:hover { transform: scale(1.1); }
 </style>
 </head>
 <body>
+
+<!-- Pantalla de carga -->
+<div id="loadingScreen" style="position:absolute;top:0;left:0;width:100%;height:100%;background:#222;display:flex;flex-direction:column;justify-content:center;align-items:center;color:white;z-index:20;">
+  <h1 style="font-size:3em;margin-bottom:20px;">Geometry Dash 3D</h1>
+  <p style="font-size:1.5em;">Hecho por: Iker</p>
+</div>
 
 <!-- Pantalla de inicio -->
 <div id="startScreen">
@@ -79,6 +94,9 @@ let levelLength=120;
 let menuAudio = new Audio('Background.mp3'); menuAudio.loop=true;
 let levelAudio = null;
 
+loadingScreen.classList.add('hidden');
+setTimeout(()=>{ loadingScreen.style.display='none'; }, 1000);
+  
 // UI
 const startScreen = document.getElementById('startScreen');
 const startBtn = document.getElementById('startBtn');
@@ -137,6 +155,15 @@ function animateMenu(){
   });
   menuRenderer.render(menuScene,menuCamera);
 }
+
+window.addEventListener('load', ()=>{
+  // Oculta la pantalla de carga
+  const loadingScreen = document.getElementById('loadingScreen');
+  loadingScreen.style.display = 'none';
+  
+  // Muestra pantalla de inicio con botón Empezar
+  startScreen.style.display = 'flex';
+});
 
 // ===== Eventos UI =====
 startBtn.addEventListener('click', ()=>{
