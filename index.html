@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Geometry Dash 3D Clone</title>
+<title>Geometry Dash 3D</title>
 <style>
 body, html { margin:0; padding:0; overflow:hidden; background:#222; font-family:sans-serif; }
 canvas { display:block; }
 
-/* Pantallas */
 #loadingScreen, #startScreen, #menu, #levelSelect, #gameOver { 
   position:absolute; top:0; left:0; width:100%; height:100%; 
   display:flex; justify-content:center; align-items:center; flex-direction:column; 
@@ -20,29 +19,24 @@ canvas { display:block; }
 #menu { display:none; background:rgba(0,0,0,0.7); }
 #levelSelect, #gameOver { display:none; background:rgba(0,0,0,0.7); }
 
-/* Botones */
 button { padding:15px 30px; margin:10px; font-size:1em; border:none; border-radius:10px; background:#ffcc00; color:#222; cursor:pointer; transition: transform 0.2s; }
 button:hover { transform: scale(1.1); }
 
-/* Progress bar */
 #progressContainer { position:absolute; top:10px; left:10px; width:80%; height:20px; background:#555; border-radius:10px; z-index:15; }
 #progressBar { width:0%; height:100%; background:#ffcc00; border-radius:10px; }
 </style>
 </head>
 <body>
 
-<!-- Pantalla de carga -->
 <div id="loadingScreen">
   <h1 style="font-size:3em;margin-bottom:20px;">Geometry Dash 3D</h1>
   <p style="font-size:1.5em;">Hecho por: Iker</p>
 </div>
 
-<!-- Pantalla de inicio -->
 <div id="startScreen">
   <button id="startBtn" style="font-size:2em;padding:20px 40px;">Empezar</button>
 </div>
 
-<!-- Menú principal -->
 <div id="menu">
   <h1>Geometry Dash 3D</h1>
   <button id="playBtn">Play</button>
@@ -51,7 +45,6 @@ button:hover { transform: scale(1.1); }
   <canvas id="menuCanvas" style="position:absolute;top:0;left:0;z-index:-1;"></canvas>
 </div>
 
-<!-- Selector de niveles -->
 <div id="levelSelect">
   <h2>Select Level</h2>
   <button class="levelBtn" data-level="1">Level 1</button>
@@ -60,14 +53,12 @@ button:hover { transform: scale(1.1); }
   <button id="backMenuBtn">Back</button>
 </div>
 
-<!-- Game Over -->
 <div id="gameOver">
   <h2>Game Over</h2>
   <button id="retryBtn">Retry</button>
   <button id="menuBtn">Menu</button>
 </div>
 
-<!-- Progress bar -->
 <div id="progressContainer">
   <div id="progressBar"></div>
 </div>
@@ -75,85 +66,72 @@ button:hover { transform: scale(1.1); }
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.0/build/three.module.js';
 
-// ===== Variables globales =====
 let scene, camera, renderer;
-let player, obstacles=[];
+let player, obstacles=[], portals=[], platform=null, portalTop=null;
 let speed=0.15, jumpForce=0.35, gravity=-0.02, velocityY=0;
-let isJumping=false, gameStarted=false;
-let level=1;
-let levelLength=120;
+let isJumping=false, gameStarted=false, isAscending=false;
+let level=1, levelLength=120;
+let menuAudio=new Audio('Background.mp3'); menuAudio.loop=true;
+let levelAudio=null;
 
-// Música
-let menuAudio = new Audio('Background.mp3'); menuAudio.loop=true;
-let levelAudio = null;
+const loadingScreen=document.getElementById('loadingScreen');
+const startScreen=document.getElementById('startScreen');
+const startBtn=document.getElementById('startBtn');
+const menuDiv=document.getElementById('menu');
+const levelSelectDiv=document.getElementById('levelSelect');
+const gameOverDiv=document.getElementById('gameOver');
+const playBtn=document.getElementById('playBtn');
+const backMenuBtn=document.getElementById('backMenuBtn');
+const retryBtn=document.getElementById('retryBtn');
+const menuBtn=document.getElementById('menuBtn');
+const levelBtns=document.querySelectorAll('.levelBtn');
+const progressBar=document.getElementById('progressBar');
 
-// UI
-const loadingScreen = document.getElementById('loadingScreen');
-const startScreen = document.getElementById('startScreen');
-const startBtn = document.getElementById('startBtn');
-const menuDiv = document.getElementById('menu');
-const levelSelectDiv = document.getElementById('levelSelect');
-const gameOverDiv = document.getElementById('gameOver');
-const playBtn = document.getElementById('playBtn');
-const backMenuBtn = document.getElementById('backMenuBtn');
-const retryBtn = document.getElementById('retryBtn');
-const menuBtn = document.getElementById('menuBtn');
-const levelBtns = document.querySelectorAll('.levelBtn');
-const progressBar = document.getElementById('progressBar');
-
-// ===== Menú animado =====
+// ==== Menú animado ====
 let menuScene, menuCamera, menuRenderer, menuCube, menuObstacles=[];
 function initMenuAnimation(){
-  const canvas = document.getElementById('menuCanvas');
-  menuScene = new THREE.Scene();
-  menuCamera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight,0.1,1000);
-  menuRenderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+  const canvas=document.getElementById('menuCanvas');
+  menuScene=new THREE.Scene();
+  menuCamera=new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight,0.1,1000);
+  menuRenderer=new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
   menuRenderer.setSize(window.innerWidth, window.innerHeight);
-
-  const light = new THREE.DirectionalLight(0xffffff,1);
+  const light=new THREE.DirectionalLight(0xffffff,1);
   light.position.set(5,10,5);
   menuScene.add(light);
-
-  const cubeGeo = new THREE.BoxGeometry(1,1,1);
-  const cubeMat = new THREE.MeshPhongMaterial({color:0xff0000});
-  menuCube = new THREE.Mesh(cubeGeo,cubeMat);
+  const cubeGeo=new THREE.BoxGeometry(1,1,1);
+  const cubeMat=new THREE.MeshPhongMaterial({color:0xff0000});
+  menuCube=new THREE.Mesh(cubeGeo,cubeMat);
   menuCube.position.set(-5,0.5,0);
   menuScene.add(menuCube);
-
   for(let i=0;i<10;i++){
-    const geo = new THREE.BoxGeometry(1,1,1);
-    const mat = new THREE.MeshPhongMaterial({color:0x00ff00});
-    const obs = new THREE.Mesh(geo,mat);
+    const geo=new THREE.BoxGeometry(1,1,1);
+    const mat=new THREE.MeshPhongMaterial({color:0x00ff00});
+    const obs=new THREE.Mesh(geo,mat);
     obs.position.set(i*5+5,0.5,0);
     menuScene.add(obs);
     menuObstacles.push(obs);
   }
-
   menuCamera.position.set(-10,5,10);
   menuCamera.lookAt(menuCube.position);
   animateMenu();
 }
-
-let menuVelocityY = 0;
+let menuVelocityY=0;
 function animateMenu(){
   requestAnimationFrame(animateMenu);
-  menuVelocityY += -0.01;
-  menuCube.position.y += menuVelocityY;
+  menuVelocityY+=-0.01;
+  menuCube.position.y+=menuVelocityY;
   if(menuCube.position.y<=0.5){ menuCube.position.y=0.5; menuVelocityY=0.2; }
   menuObstacles.forEach(obs=>{
-    obs.position.x -= speed/2;
+    obs.position.x-=speed/2;
     if(obs.position.x<-10) obs.position.x+=50;
   });
   menuRenderer.render(menuScene,menuCamera);
 }
 
-// ===== Eventos UI =====
+// ==== Eventos UI ====
 window.addEventListener('load', ()=>{
   loadingScreen.classList.add('hidden');
-  setTimeout(()=>{ 
-    loadingScreen.style.display='none'; 
-    startScreen.style.display='flex';
-  }, 1000);
+  setTimeout(()=>{ loadingScreen.style.display='none'; startScreen.style.display='flex'; },1000);
 });
 
 startBtn.addEventListener('click', ()=>{
@@ -163,24 +141,15 @@ startBtn.addEventListener('click', ()=>{
   initMenuAnimation();
 });
 
-playBtn.addEventListener('click', ()=>{
-  menuDiv.style.display='none';
-  levelSelectDiv.style.display='flex';
-});
-
-backMenuBtn.addEventListener('click', ()=>{
-  levelSelectDiv.style.display='none';
-  menuDiv.style.display='flex';
-});
+playBtn.addEventListener('click', ()=>{ menuDiv.style.display='none'; levelSelectDiv.style.display='flex'; });
+backMenuBtn.addEventListener('click', ()=>{ levelSelectDiv.style.display='none'; menuDiv.style.display='flex'; });
 
 levelBtns.forEach(btn=>{
   btn.addEventListener('click', ()=>{
     level=parseInt(btn.dataset.level);
     menuAudio.pause(); menuAudio.currentTime=0;
     if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; }
-    levelAudio = new Audio(`Level${level}.mp3`);
-    levelAudio.loop=true;
-    levelAudio.play();
+    levelAudio=new Audio(`Level${level}.mp3`); levelAudio.loop=true; levelAudio.play();
     levelSelectDiv.style.display='none';
     startGame();
   });
@@ -191,7 +160,6 @@ retryBtn.addEventListener('click', ()=>{
   gameOverDiv.style.display='none';
   startGame();
 });
-
 menuBtn.addEventListener('click', ()=>{
   if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; }
   menuAudio.play();
@@ -199,27 +167,27 @@ menuBtn.addEventListener('click', ()=>{
   menuDiv.style.display='flex';
 });
 
-// ===== Juego principal =====
+// ==== Juego principal ====
 function initGame(){
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight,0.1,1000); // FOV más cerrado = zoom
-  renderer = new THREE.WebGLRenderer({antialias:true});
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight,0.1,1000);
+  renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(window.innerWidth,window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  const light = new THREE.DirectionalLight(0xffffff,1);
+  const light=new THREE.DirectionalLight(0xffffff,1);
   light.position.set(5,10,5);
   scene.add(light);
 
-  const floorGeo = new THREE.BoxGeometry(1000,1,10);
-  const floorMat = new THREE.MeshPhongMaterial({color:0x444444});
-  const floor = new THREE.Mesh(floorGeo,floorMat);
+  const floorGeo=new THREE.BoxGeometry(1000,1,10);
+  const floorMat=new THREE.MeshPhongMaterial({color:0x444444});
+  const floor=new THREE.Mesh(floorGeo,floorMat);
   floor.position.set(0,-1,0);
   scene.add(floor);
 
-  const cubeGeo = new THREE.BoxGeometry(1,1,1);
-  const cubeMat = new THREE.MeshPhongMaterial({color:0xff0000});
-  player = new THREE.Mesh(cubeGeo,cubeMat);
+  const cubeGeo=new THREE.BoxGeometry(1,1,1);
+  const cubeMat=new THREE.MeshPhongMaterial({color:0xff0000, transparent:true, opacity:1});
+  player=new THREE.Mesh(cubeGeo,cubeMat);
   player.position.set(-5,0.5,0);
   scene.add(player);
 
@@ -227,91 +195,145 @@ function initGame(){
 
   window.addEventListener('mousedown', jumpPlayer);
   window.addEventListener('touchstart', jumpPlayer);
+  window.addEventListener('keydown',(e)=>{ if(isAscending && e.code==='Space') velocityY=0.35; });
 
   animateGame();
 }
 
-// ===== Obstáculos por nivel =====
+// ==== Obstáculos, plataforma y portales ====
 function generateObstaclesForLevel(level){
-  obstacles.forEach(obs=>scene.remove(obs));
-  obstacles=[];
-  let posX = 10;
+  obstacles.forEach(obs=>scene.remove(obs)); obstacles=[];
+  portals.forEach(p=>scene.remove(p)); portals=[];
+  if(platform) scene.remove(platform); platform=null;
+  if(portalTop) scene.remove(portalTop); portalTop=null;
 
+  let posX=10;
   for(let i=0;i<30;i++){
-    let type;
-    let color = 0xff0000;
-    if(level===1){ type = Math.random()<0.3?'spike':'cube'; color=0xff0000; }
-    if(level===2){ type = Math.random()<0.4?'spike':'cube'; color=0x00ffff; }
-    if(level===3){ type = Math.random()<0.5?'spike':'cube'; color=0xffff00; }
+    let type; let color=0xff0000;
+    if(level===1){ type=Math.random()<0.3?'spike':'cube'; color=0xff0000; }
+    if(level===2){ type=Math.random()<0.4?'spike':'cube'; color=0x00ffff; }
+    if(level===3){ type=Math.random()<0.5?'spike':'cube'; color=0xffff00; }
 
-    let obs;
-    let baseY = 0.5;
+    let obs; let baseY=0.5;
     if(type==='cube'){
-      const geo = new THREE.BoxGeometry(1,1,1);
-      const mat = new THREE.MeshPhongMaterial({color:color});
-      obs = new THREE.Mesh(geo,mat);
-      obs.position.y = baseY;
+      const geo=new THREE.BoxGeometry(1,1,1);
+      const mat=new THREE.MeshPhongMaterial({color:color});
+      obs=new THREE.Mesh(geo,mat); obs.position.y=baseY;
     } else {
-      const geo = new THREE.ConeGeometry(0.5,1,4);
-      const mat = new THREE.MeshPhongMaterial({color:0x0000ff});
-      obs = new THREE.Mesh(geo,mat);
-      obs.position.y = baseY;
-      obs.rotation.z = Math.PI;
-      obs.scale.y = 1 + Math.random();
+      const geo=new THREE.ConeGeometry(0.5,1,4);
+      const mat=new THREE.MeshPhongMaterial({color:0x0000ff});
+      obs=new THREE.Mesh(geo,mat);
+      obs.position.y=baseY; obs.rotation.z=Math.PI; obs.scale.y=1+Math.random();
     }
 
-    posX = 7;
-    obs.position.x = posX;
-    obs.position.z = 0;
-    scene.add(obs);
-    obstacles.push(obs);
+    posX+=5+Math.random()*4;
+    obs.position.x=posX; obs.position.z=0;
+    scene.add(obs); obstacles.push(obs);
   }
 
-  levelLength = posX + 5;
+  // ==== Plataforma a mitad de nivel 1 ====
+  if(level===1){
+    platform=new THREE.Mesh(new THREE.BoxGeometry(4,0.5,4), new THREE.MeshPhongMaterial({color:0x8888ff}));
+    platform.position.set(levelLength/2,1,0);
+    scene.add(platform);
+
+    portalTop=new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshPhongMaterial({color:0xffff00}));
+    portalTop.position.set(levelLength/2,2.5,0);
+    scene.add(portalTop);
+    portals.push(portalTop);
+
+    // Portal final cerca del final
+    const portalEnd=new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshPhongMaterial({color:0x00ff00}));
+    portalEnd.position.set(levelLength-5,1,0);
+    scene.add(portalEnd); portals.push(portalEnd);
+
+    const wallTop=new THREE.Mesh(new THREE.BoxGeometry(3,1,1), new THREE.MeshPhongMaterial({color:0xff0000}));
+    wallTop.position.set(levelLength-5,2,0);
+    scene.add(wallTop); portals.push(wallTop); // solo para colisión
+  }
+
+  levelLength=posX+5;
 }
 
-// ===== Movimiento jugador =====
-function jumpPlayer(){ if(!isJumping){ velocityY=jumpForce; isJumping=true; } }
+// ==== Movimiento jugador ====
+function jumpPlayer(){ if(!isJumping && !isAscending){ velocityY=jumpForce; isJumping=true; } }
 
+let finalAnim=false;
 function animateGame(){
   requestAnimationFrame(animateGame);
   if(gameStarted){
-    player.position.x += speed;
-    velocityY += gravity;
-    player.position.y += velocityY;
-    if(player.position.y<=0.5){ player.position.y=0.5; velocityY=0; isJumping=false; }
+    // Mover jugador
+    player.position.x+=speed;
 
+    if(isAscending) velocityY+=-0.02;
+    else velocityY+=gravity;
+
+    player.position.y+=velocityY;
+
+    if(!isAscending && player.position.y<=0.5){ player.position.y=0.5; velocityY=0; isJumping=false; }
+
+    // Colisiones obstáculos
     obstacles.forEach(obs=>{
       if(player.position.x+0.5>obs.position.x-0.5 && player.position.x-0.5<obs.position.x+0.5){
-        if(player.position.y-0.5<obs.position.y+0.5){ gameOver(); }
+        if(player.position.y-0.5<obs.position.y+0.5) gameOver();
       }
     });
 
-    // Progress bar
-    let progress = (player.position.x + 5)/levelLength;
-    if(progress>1) progress=1;
-    progressBar.style.width = (progress*100)+'%';
+    // Colisiones plataforma/portal
+    if(platform){
+      const px=platform.position.x, py=platform.position.y, pw=2, ph=0.25;
+      if(player.position.x>px-2 && player.position.x<px+2){
+        if(player.position.y-0.5<py+0.25 && player.position.y-0.5>py-0.25){ isAscending=true; velocityY=0; player.position.y=py+0.5; }
+        else if(player.position.y+0.5>py+0.25) gameOver();
+      }
+    }
+    if(portals.length){
+      portals.forEach(port=>{
+        if(player.position.x>port.position.x-0.5 && player.position.x<port.position.x+0.5){
+          if(player.position.y>port.position.y-0.5 && player.position.y<port.position.y+0.5){
+            if(port===portals[0]) isAscending=true; // primer portal mitad nivel
+            if(port===portals[1]) isAscending=false; // portal final vuelve a normal
+          }
+        }
+      });
+    }
 
-    // Cámara con efecto 2D lateral y zoom
-    camera.position.x = player.position.x - 10; // atrás
-    camera.position.y = 3; // altura
-    camera.position.z = 5; // lateral fijo
+    // Progress bar
+    let progress=(player.position.x+5)/levelLength; if(progress>1) progress=1;
+    progressBar.style.width=(progress*100)+'%';
+
+    // Cámara lateral 2D
+    camera.position.x=player.position.x-10; camera.position.y=3; camera.position.z=5;
     camera.lookAt(player.position.x, player.position.y, 0);
+
+    // ==== Final del nivel ====
+    if(player.position.x>=levelLength && !finalAnim){
+      finalAnim=true; gameStarted=false; velocityY=0;
+    }
+    if(finalAnim){
+      player.rotation.z+=0.2;
+      player.position.y+=0.1;
+      player.material.opacity-=0.01;
+    }
   }
   renderer.render(scene,camera);
 }
 
 function gameOver(){
   gameStarted=false;
+  finalAnim=false;
+  player.material.opacity=1;
   gameOverDiv.style.display='flex';
-  levelAudio.pause();
+  levelAudio.pause()
 }
 
 function startGame(){
   gameOverDiv.style.display='none';
+  finalAnim=false;
   if(!scene) initGame();
   player.position.set(-5,0.5,0);
-  velocityY=0; isJumping=false; gameStarted=true;
+  velocityY=0; isJumping=false; gameStarted=true; isAscending=false;
+  player.material.opacity=1;
   generateObstaclesForLevel(level);
 }
 </script>
