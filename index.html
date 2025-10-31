@@ -197,10 +197,13 @@ function initGame(){
 window.addEventListener('mousedown', jumpPlayer);
 window.addEventListener('touchstart', jumpPlayer);
 
-// Tecla SPACE
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') {
-    jumpPlayer();
+    if (isAscending) {
+      velocityY = 0.35; // fuerza para subir en el portal/avión
+    } else {
+      jumpPlayer(); // salto normal
+    }
   }
 });
   window.addEventListener('keydown',(e)=>{ if(isAscending && e.code==='Space') velocityY=0.35; });
@@ -293,13 +296,20 @@ function animateGame(){
     });
 
     // Colisiones plataforma/portal
-    if(platform){
-      const px=platform.position.x, py=platform.position.y, pw=2, ph=0.25;
-      if(player.position.x>px-2 && player.position.x<px+2){
-        if(player.position.y-0.5<py+0.25 && player.position.y-0.5>py-0.25){ isAscending=true; velocityY=0; player.position.y=py+0.5; }
-        else if(player.position.y+0.5>py+0.25) gameOver();
+    // Colisión plataforma
+if(platform){
+  const px=platform.position.x, py=platform.position.y;
+  if(player.position.x>px-2 && player.position.x<px+2){
+    if(!isAscending){ // solo activa colisión mortal si no estás en el portal
+      if(player.position.y+0.5>py+0.25 || player.position.y-0.5<py-0.25){
+        gameOver();
+      } else {
+        isAscending = true; // entra al portal
+        velocityY = 0;
       }
     }
+  }
+}
     if(portals.length){
       portals.forEach(port=>{
         if(player.position.x>port.position.x-0.5 && player.position.x<port.position.x+0.5){
