@@ -3,22 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Geometry Dash 3D</title>
+<title>Geometry Dash 3D Clone</title>
 <style>
   body, html { margin:0; padding:0; overflow:hidden; background:#222; }
   canvas { display:block; }
-  #menu, #levelSelect, #gameOver {
+  #startScreen, #menu, #levelSelect, #gameOver {
     position:absolute; top:0; left:0; width:100%; height:100%;
     display:flex; justify-content:center; align-items:center; flex-direction:column;
-    background: rgba(0,0,0,0.8); z-index:10; color:white;
+    background: rgba(0,0,0,0.9); color:white; z-index:10;
   }
   button { padding:15px 30px; margin:10px; font-size:1em; border:none; border-radius:10px; background:#ffcc00; color:#222; cursor:pointer; }
 </style>
 </head>
 <body>
 
-<!-- Botón de inicio -->
-<div id="startScreen" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;background:#222;z-index:20;">
+<!-- Pantalla de inicio -->
+<div id="startScreen">
   <button id="startBtn" style="font-size:2em;padding:20px 40px;">Empezar</button>
 </div>
 
@@ -29,7 +29,8 @@
   <button id="settingsBtn">Settings</button>
   <button id="exitBtn">Exit</button>
 </div>
-  
+
+<!-- Selector de niveles -->
 <div id="levelSelect" style="display:none;">
   <h2>Select Level</h2>
   <button class="levelBtn" data-level="1">Level 1</button>
@@ -38,13 +39,14 @@
   <button id="backMenuBtn">Back</button>
 </div>
 
+<!-- Game Over -->
 <div id="gameOver" style="display:none;">
   <h2>Game Over</h2>
   <button id="retryBtn">Retry</button>
   <button id="menuBtn">Menu</button>
 </div>
 
-<!-- Importar Three.js desde CDN -->
+<!-- Three.js desde CDN -->
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.0/build/three.module.js';
 
@@ -59,130 +61,160 @@ let isJumping = false;
 let gameStarted = false;
 let level = 1;
 
-// Música de fondo
+// Música del menú
+let menuAudio = new Audio('Background.mp3');
+menuAudio.loop = true;
 
-// ===== Inicialización =====
-function initGame(){
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-  renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
+// Música del nivel
+let levelAudio = null;
 
-  const light = new THREE.DirectionalLight(0xffffff,1);
-  light.position.set(5,10,5);
-  scene.add(light);
-
-  const floorGeo = new THREE.BoxGeometry(1000,1,10);
-  const floorMat = new THREE.MeshPhongMaterial({color:0x444444});
-  const floor = new THREE.Mesh(floorGeo,floorMat);
-  floor.position.set(0,-1,0);
-  scene.add(floor);
-
-  const cubeGeo = new THREE.BoxGeometry(1,1,1);
-  const cubeMat = new THREE.MeshPhongMaterial({color:0xff0000});
-  player = new THREE.Mesh(cubeGeo,cubeMat);
-  player.position.set(-5,0.5,0);
-  scene.add(player);
-
-  generateObstacles();
-
-  camera.position.set(-10,5,10);
-  camera.lookAt(player.position);
-
-  window.addEventListener('mousedown', jumpPlayer);
-  window.addEventListener('touchstart', jumpPlayer);
-
-  animate();
-}
-
-function generateObstacles(){
-  obstacles.forEach(obs=>scene.remove(obs));
-  obstacles = [];
-  for(let i=0;i<20;i++){
-    const obsGeo = new THREE.BoxGeometry(1,1,1);
-    const obsMat = new THREE.MeshPhongMaterial({color:0x00ff00});
-    const obs = new THREE.Mesh(obsGeo, obsMat);
-    obs.position.set(i*5 + 10, 0.5, 0);
-    scene.add(obs);
-    obstacles.push(obs);
-  }
-}
-
-function jumpPlayer(){
-  if(!isJumping){ velocityY = jump; isJumping = true; }
-}
-
-function animate(){
-  requestAnimationFrame(animate);
-  if(gameStarted){
-    player.position.x += speed;
-    velocityY += gravity;
-    player.position.y += velocityY;
-    if(player.position.y <= 0.5){ player.position.y = 0.5; velocityY = 0; isJumping = false; }
-
-    obstacles.forEach(obs=>{
-      if(player.position.x + 0.5 > obs.position.x - 0.5 &&
-         player.position.x - 0.5 < obs.position.x + 0.5){
-        if(player.position.y - 0.5 < obs.position.y + 0.5){
-          gameOver();
-        }
-      }
-    });
-
-    camera.position.x = player.position.x - 10;
-    camera.lookAt(player.position);
-  }
-  renderer.render(scene, camera);
-}
-
-function gameOver(){
-  gameStarted = false;
-  document.getElementById('gameOver').style.display = 'flex';
-}
-
-// ===== Menús =====
-const playBtn = document.getElementById('playBtn');
-const levelSelectDiv = document.getElementById('levelSelect');
-const menuDiv = document.getElementById('menu');
-const gameOverDiv = document.getElementById('gameOver');
-const levelBtns = document.querySelectorAll('.levelBtn');
-const backMenuBtn = document.getElementById('backMenuBtn');
-const retryBtn = document.getElementById('retryBtn');
-const menuBtn = document.getElementById('menuBtn');
-
-let Level1 = new Audio('Level1.mp3');
-  
-playBtn.addEventListener('click', ()=>{ menuDiv.style.display='none'; levelSelectDiv.style.display='flex'; });
-backMenuBtn.addEventListener('click', ()=>{ levelSelectDiv.style.display='none'; menuDiv.style.display='flex'; });
-levelBtns.forEach(btn=>btn.addEventListener('click', ()=>{
-  level = parseInt(btn.dataset.level);
-  levelSelectDiv.style.display='none';
-  startGame();
-}));
-retryBtn.addEventListener('click', ()=>{ gameOverDiv.style.display='none'; startGame(); });
-menuBtn.addEventListener('click', ()=>{ gameOverDiv.style.display='none'; menuDiv.style.display='flex'; });
+// ===== Elementos de UI =====
 const startScreen = document.getElementById('startScreen');
 const startBtn = document.getElementById('startBtn');
 const menuDiv = document.getElementById('menu');
-let audio2 = new Audio('Background.mp3');
-audio2.loop = true;
-  startBtn.addEventListener('click', ()=>{
-    // Ocultar pantalla de inicio
-    startScreen.style.display = 'none';
-    // Mostrar menú principal
-    menuDiv.style.display = 'flex';
-    // Reproducir música
-    audio2.play();
+const levelSelectDiv = document.getElementById('levelSelect');
+const gameOverDiv = document.getElementById('gameOver');
+
+const playBtn = document.getElementById('playBtn');
+const backMenuBtn = document.getElementById('backMenuBtn');
+const retryBtn = document.getElementById('retryBtn');
+const menuBtn = document.getElementById('menuBtn');
+const levelBtns = document.querySelectorAll('.levelBtn');
+
+// ===== Eventos UI =====
+startBtn.addEventListener('click', ()=>{
+    startScreen.style.display='none';
+    menuDiv.style.display='flex';
+    menuAudio.play();
 });
 
-function startGame(lv){
-  gameOverDiv.style.display='none';
-  if(!scene) initGame();
-  player.position.set(-5,0.5,0);
-  velocityY=0; isJumping=false; gameStarted=true;
-  generateObstacles();
-  lv.play()
+playBtn.addEventListener('click', ()=>{
+    menuDiv.style.display='none';
+    levelSelectDiv.style.display='flex';
+});
+
+backMenuBtn.addEventListener('click', ()=>{
+    levelSelectDiv.style.display='none';
+    menuDiv.style.display='flex';
+});
+
+levelBtns.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+        level = parseInt(btn.dataset.level);
+        // Pausar música del menú
+        menuAudio.pause();
+        menuAudio.currentTime = 0;
+        // Reproducir música del nivel
+        if(levelAudio){
+            levelAudio.pause();
+            levelAudio.currentTime = 0;
+        }
+        levelAudio = new Audio(`Level${level}.mp3`);
+        levelAudio.loop = true;
+        levelAudio.play();
+        levelSelectDiv.style.display='none';
+        startGame();
+    });
+});
+
+retryBtn.addEventListener('click', ()=>{
+    gameOverDiv.style.display='none';
+    startGame();
+});
+
+menuBtn.addEventListener('click', ()=>{
+    if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; }
+    menuAudio.play();
+    gameOverDiv.style.display='none';
+    menuDiv.style.display='flex';
+});
+
+// ===== Inicialización 3D =====
+function initGame(){
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const light = new THREE.DirectionalLight(0xffffff,1);
+    light.position.set(5,10,5);
+    scene.add(light);
+
+    const floorGeo = new THREE.BoxGeometry(1000,1,10);
+    const floorMat = new THREE.MeshPhongMaterial({color:0x444444});
+    const floor = new THREE.Mesh(floorGeo,floorMat);
+    floor.position.set(0,-1,0);
+    scene.add(floor);
+
+    const cubeGeo = new THREE.BoxGeometry(1,1,1);
+    const cubeMat = new THREE.MeshPhongMaterial({color:0xff0000});
+    player = new THREE.Mesh(cubeGeo,cubeMat);
+    player.position.set(-5,0.5,0);
+    scene.add(player);
+
+    generateObstacles();
+
+    camera.position.set(-10,5,10);
+    camera.lookAt(player.position);
+
+    window.addEventListener('mousedown', jumpPlayer);
+    window.addEventListener('touchstart', jumpPlayer);
+
+    animate();
+}
+
+function generateObstacles(){
+    obstacles.forEach(obs=>scene.remove(obs));
+    obstacles = [];
+    for(let i=0;i<20;i++){
+        const obsGeo = new THREE.BoxGeometry(1,1,1);
+        const obsMat = new THREE.MeshPhongMaterial({color:0x00ff00});
+        const obs = new THREE.Mesh(obsGeo, obsMat);
+        obs.position.set(i*5 + 10, 0.5, 0);
+        scene.add(obs);
+        obstacles.push(obs);
+    }
+}
+
+function jumpPlayer(){
+    if(!isJumping){ velocityY = jump; isJumping = true; }
+}
+
+function animate(){
+    requestAnimationFrame(animate);
+    if(gameStarted){
+        player.position.x += speed;
+        velocityY += gravity;
+        player.position.y += velocityY;
+        if(player.position.y <= 0.5){ player.position.y=0.5; velocityY=0; isJumping=false; }
+
+        obstacles.forEach(obs=>{
+            if(player.position.x + 0.5 > obs.position.x - 0.5 &&
+               player.position.x - 0.5 < obs.position.x + 0.5){
+                if(player.position.y - 0.5 < obs.position.y + 0.5){
+                    gameOver();
+                }
+            }
+        });
+
+        camera.position.x = player.position.x - 10;
+        camera.lookAt(player.position);
+    }
+    renderer.render(scene,camera);
+}
+
+function gameOver(){
+    gameStarted=false;
+    gameOverDiv.style.display='flex';
+}
+
+function startGame(){
+    gameOverDiv.style.display='none';
+    if(!scene) initGame();
+    player.position.set(-5,0.5,0);
+    velocityY=0; isJumping=false; gameStarted=true;
+    generateObstacles();
 }
 </script>
 </body>
