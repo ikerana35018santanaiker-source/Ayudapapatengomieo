@@ -66,8 +66,12 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.0/build/three.m
 // ===== Variables globales =====
 let scene, camera, renderer;
 let player, obstacles = [];
-let speed = 0.15, jump = 0.3, gravity = -0.01, velocityY = 0;
-let isJumping = false, gameStarted = false;
+let gravity = -0.02;      // más fuerte que antes
+let jumpForce = 0.35;     // impulso al saltar
+let velocityY = 0;
+let isJumping = false;
+
+let gameStarted = false;
 let level = 1;
 
 // Música
@@ -253,7 +257,13 @@ function generateObstacles(){
   }
 }
 
-function jumpPlayer(){ if(!isJumping){ velocityY=jump; isJumping=true; } }
+function jumpPlayer(){
+    // Permitir saltar si tocando suelo
+    if(!isJumping){
+        velocityY = jumpForce;
+        isJumping = true;
+    }
+}
 
 const progressBar = document.getElementById('progressBar');
 const levelLength = 100; // distancia total del nivel
