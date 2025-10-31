@@ -3,30 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Geometry Dash 3D</title>
+<title>Geometry Dash 3D Clone</title>
 <style>
 body, html { margin:0; padding:0; overflow:hidden; background:#222; font-family:sans-serif; }
 canvas { display:block; }
 
 /* Pantallas */
-#startScreen, #menu, #levelSelect, #gameOver { 
+#loadingScreen, #startScreen, #menu, #levelSelect, #gameOver { 
   position:absolute; top:0; left:0; width:100%; height:100%; 
   display:flex; justify-content:center; align-items:center; flex-direction:column; 
   color:white; z-index:10; 
 }
-#startScreen { background:#222; }
+#loadingScreen { background:#222; z-index:20; transition: opacity 1s ease; }
+#loadingScreen.hidden { opacity:0; pointer-events:none; }
+#startScreen { background:#222; display:none; }
 #menu { display:none; background:rgba(0,0,0,0.7); }
 #levelSelect, #gameOver { display:none; background:rgba(0,0,0,0.7); }
 
-#loadingScreen {
-  transition: opacity 1s ease;
-}
-
-#loadingScreen.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-  
 /* Botones */
 button { padding:15px 30px; margin:10px; font-size:1em; border:none; border-radius:10px; background:#ffcc00; color:#222; cursor:pointer; transition: transform 0.2s; }
 button:hover { transform: scale(1.1); }
@@ -39,7 +32,7 @@ button:hover { transform: scale(1.1); }
 <body>
 
 <!-- Pantalla de carga -->
-<div id="loadingScreen" style="position:absolute;top:0;left:0;width:100%;height:100%;background:#222;display:flex;flex-direction:column;justify-content:center;align-items:center;color:white;z-index:20;">
+<div id="loadingScreen">
   <h1 style="font-size:3em;margin-bottom:20px;">Geometry Dash 3D</h1>
   <p style="font-size:1.5em;">Hecho por: Iker</p>
 </div>
@@ -85,7 +78,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.0/build/three.m
 // ===== Variables globales =====
 let scene, camera, renderer;
 let player, obstacles=[];
-let speed=0.18, jumpForce=0.35, gravity=-0.02, velocityY=0;
+let speed=0.15, jumpForce=0.35, gravity=-0.02, velocityY=0;
 let isJumping=false, gameStarted=false;
 let level=1;
 let levelLength=120;
@@ -94,10 +87,8 @@ let levelLength=120;
 let menuAudio = new Audio('Background.mp3'); menuAudio.loop=true;
 let levelAudio = null;
 
-loadingScreen.classList.add('hidden');
-setTimeout(()=>{ loadingScreen.style.display='none'; }, 1000);
-  
 // UI
+const loadingScreen = document.getElementById('loadingScreen');
 const startScreen = document.getElementById('startScreen');
 const startBtn = document.getElementById('startBtn');
 const menuDiv = document.getElementById('menu');
@@ -156,16 +147,15 @@ function animateMenu(){
   menuRenderer.render(menuScene,menuCamera);
 }
 
+// ===== Eventos UI =====
 window.addEventListener('load', ()=>{
-  // Oculta la pantalla de carga
-  const loadingScreen = document.getElementById('loadingScreen');
-  loadingScreen.style.display = 'none';
-  
-  // Muestra pantalla de inicio con botón Empezar
-  startScreen.style.display = 'flex';
+  loadingScreen.classList.add('hidden');
+  setTimeout(()=>{ 
+    loadingScreen.style.display='none'; 
+    startScreen.style.display='flex';
+  }, 1000);
 });
 
-// ===== Eventos UI =====
 startBtn.addEventListener('click', ()=>{
   startScreen.style.display='none';
   menuDiv.style.display='flex';
@@ -270,10 +260,10 @@ function generateObstaclesForLevel(level){
       obs = new THREE.Mesh(geo,mat);
       obs.position.y = baseY;
       obs.rotation.z = Math.PI;
-      obs.scale.y = 1;
+      obs.scale.y = 1 + Math.random();
     }
 
-    posX += 6;
+    posX += 3 + Math.random()*4; // distancia variable
     obs.position.x = posX;
     obs.position.z = 0;
     scene.add(obs);
