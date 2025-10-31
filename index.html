@@ -17,14 +17,19 @@
 </head>
 <body>
 
-<div id="menu">
+<!-- Botón de inicio -->
+<div id="startScreen" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;background:#222;z-index:20;">
+  <button id="startBtn" style="font-size:2em;padding:20px 40px;">Empezar</button>
+</div>
+
+<!-- Menú principal -->
+<div id="menu" style="display:none;">
   <h1>Geometry Dash 3D</h1>
   <button id="playBtn">Play</button>
   <button id="settingsBtn">Settings</button>
   <button id="exitBtn">Exit</button>
-<button id="musicBtn">Play Music</button>
 </div>
-
+  
 <div id="levelSelect" style="display:none;">
   <h2>Select Level</h2>
   <button class="levelBtn" data-level="1">Level 1</button>
@@ -157,15 +162,16 @@ levelBtns.forEach(btn=>btn.addEventListener('click', ()=>{
 }));
 retryBtn.addEventListener('click', ()=>{ gameOverDiv.style.display='none'; startGame(); });
 menuBtn.addEventListener('click', ()=>{ gameOverDiv.style.display='none'; menuDiv.style.display='flex'; });
-const musicBtn = document.getElementById('musicBtn');
-musicBtn.addEventListener('click', ()=>{
-    if(audio.paused){
-        audio.play();
-        musicBtn.textContent = "Pause Music";
-    } else {
-        audio.pause();
-        musicBtn.textContent = "Play Music";
-    }
+const startScreen = document.getElementById('startScreen');
+const startBtn = document.getElementById('startBtn');
+const menuDiv = document.getElementById('menu');
+startBtn.addEventListener('click', ()=>{
+    // Ocultar pantalla de inicio
+    startScreen.style.display = 'none';
+    // Mostrar menú principal
+    menuDiv.style.display = 'flex';
+    // Reproducir música
+    audio.play();
 });
 
 function startGame(){
