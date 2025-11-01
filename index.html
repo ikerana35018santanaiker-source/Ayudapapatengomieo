@@ -392,8 +392,18 @@ menuBtn.addEventListener('click', ()=>{
 function startGame(){
   gameOverDiv.style.display='none';
   if(!scene) initGame();
-  player.position.set(-5,0.5,0);
-  velocityY=0; isJumping=false; gameStarted=true;
+
+  // Ajustar el jugador sobre la primera plataforma
+  if(platforms && platforms.length > 0){
+    player.position.x = platforms[0].position.x;
+    player.position.y = platforms[0].position.y + 0.5; // medio cubo
+  } else {
+    player.position.set(-5,0.5,0);
+  }
+
+  velocityY = 0; 
+  isJumping = false; 
+  gameStarted = true;
 }
 </script>
 </body>
