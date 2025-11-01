@@ -41,7 +41,7 @@ button:hover { transform: scale(1.1); }
   <h1>Geometry Dash 3D</h1>
   <button id="playBtn">Play</button>
   <button id="settingsBtn">Settings</button>
-  <button id="exitBtn">Exit</button>
+  <button id="customizeBtn">Customizar</button>
   <canvas id="menuCanvas" style="position:absolute;top:0;left:0;z-index:-1;"></canvas>
 </div>
 
@@ -51,6 +51,30 @@ button:hover { transform: scale(1.1); }
   <button class="levelBtn" data-level="2">Level 2</button>
   <button class="levelBtn" data-level="3">Level 3</button>
   <button id="backMenuBtn">Back</button>
+</div>
+
+<div id="customizeScreen" style="display:none; background:rgba(0,0,0,0.8); position:absolute; top:0; left:0; width:100%; height:100%; color:white; z-index:10; flex-direction:column; align-items:center; justify-content:center;">
+  <h2>Customize Player</h2>
+  <label>Shape:
+    <select id="shapeSelect">
+      <option value="cube">Cube</option>
+      <option value="sphere">Sphere</option>
+      <option value="pyramid">Pyramid</option>
+    </select>
+  </label>
+  <br>
+  <label>Color:
+    <input type="color" id="colorPicker" value="#ff0000">
+  </label>
+  <br>
+  <label>Outline Color:
+    <input type="color" id="outlinePicker" value="#000000">
+  </label>
+  <br>
+  <label><input type="checkbox" id="outlineToggle"> Enable Outline</label>
+  <br><br>
+  <button id="saveCustomizationBtn">Save</button>
+  <button id="backCustomizeBtn">Back</button>
 </div>
 
 <div id="gameOver">
@@ -88,6 +112,14 @@ const retryBtn=document.getElementById('retryBtn');
 const menuBtn=document.getElementById('menuBtn');
 const levelBtns=document.querySelectorAll('.levelBtn');
 const progressBar=document.getElementById('progressBar');
+const customizeDiv = document.getElementById('customizeScreen');
+const customizeBtn = document.getElementById('customizeBtn');
+const saveCustomizationBtn = document.getElementById('saveCustomizationBtn');
+const backCustomizeBtn = document.getElementById('backCustomizeBtn');
+const shapeSelect = document.getElementById('shapeSelect');
+const colorPicker = document.getElementById('colorPicker');
+const outlinePicker = document.getElementById('outlinePicker');
+const outlineToggle = document.getElementById('outlineToggle');
 
 // ==== Menú animado ====
 let menuScene, menuCamera, menuRenderer, menuCube, menuObstacles=[];
@@ -141,6 +173,35 @@ startBtn.addEventListener('click', ()=>{
   menuDiv.style.display='flex';
   menuAudio.play();
   initMenuAnimation();
+});
+
+// ==== CUSTOMIZATION ====
+customizeBtn.addEventListener('click', ()=>{
+  menuDiv.style.display='none';
+  customizeDiv.style.display='flex';
+
+  // Cargar personalización guardada
+  const data = JSON.parse(localStorage.getItem('playerCustomization') || '{}');
+  shapeSelect.value = data.shape || 'cube';
+  colorPicker.value = data.color || '#ff0000';
+  outlinePicker.value = data.outlineColor || '#000000';
+  outlineToggle.checked = data.outlineEnabled || false;
+});
+
+backCustomizeBtn.addEventListener('click', ()=>{
+  customizeDiv.style.display='none';
+  menuDiv.style.display='flex';
+});
+
+saveCustomizationBtn.addEventListener('click', ()=>{
+  const customization = {
+    shape: shapeSelect.value,
+    color: colorPicker.value,
+    outlineColor: outlinePicker.value,
+    outlineEnabled: outlineToggle.checked
+  };
+  localStorage.setItem('playerCustomization', JSON.stringify(customization));
+  alert('Customization saved!');
 });
 
 playBtn.addEventListener('click', ()=>{ menuDiv.style.display='none'; levelSelectDiv.style.display='flex'; });
@@ -221,12 +282,34 @@ function initGame(){
   floor.position.set(0,-1,0);
   scene.add(floor);
 
-  const cubeGeo=new THREE.BoxGeometry(1,1,1);
-  const cubeMat=new THREE.MeshPhongMaterial({color:0xff0000, transparent:true, opacity:1});
-  player=new THREE.Mesh(cubeGeo,cubeMat);
-  player.position.set(-5,0.5,0);
-  scene.add(player);
+  // Cargar personalización
+const data = JSON.parse(localStorage.getItem('playerCustomization') || '{}');
+let geo, mat, outlineMat, outlineMesh;
 
+switch (data.shape) {
+  case 'sphere':
+    geo = new THREE.SphereGeometry(0.6, 16, 16);
+    break;
+  case 'pyramid':
+    geo = new THREE.ConeGeometry(0.8, 1.2, 4);
+    break;
+  default:
+    geo = new THREE.BoxGeometry(1,1,1);
+    break;
+}
+
+mat = new THREE.MeshPhongMaterial({ color: data.color || 0xff0000, transparent:true, opacity:1 });
+player = new THREE.Mesh(geo, mat);
+
+if (data.outlineEnabled) {
+  outlineMat = new THREE.MeshBasicMaterial({ color: data.outlineColor || 0x000000, side: THREE.BackSide });
+  outlineMesh = new THREE.Mesh(geo.clone(), outlineMat);
+  outlineMesh.scale.multiplyScalar(1.05);
+  player.add(outlineMesh);
+}
+
+player.position.set(-5, 0.5, 0);
+scene.add(player);
   generateObstaclesForLevel(level);
 
   // Click o touch (ya lo tienes)
