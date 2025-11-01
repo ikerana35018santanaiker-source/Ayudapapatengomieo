@@ -8,16 +8,14 @@
 body, html { margin:0; padding:0; overflow:hidden; background:#222; font-family:sans-serif; }
 canvas { display:block; }
 
-#loadingScreen, #startScreen, #menu, #levelSelect, #gameOver { 
+#loadingScreen, #startScreen, #menu, #levelSelect, #gameOver, #customizeScreen { 
   position:absolute; top:0; left:0; width:100%; height:100%; 
   display:flex; justify-content:center; align-items:center; flex-direction:column; 
   color:white; z-index:10; 
 }
 #loadingScreen { background:#222; z-index:20; transition: opacity 1s ease; }
 #loadingScreen.hidden { opacity:0; pointer-events:none; }
-#startScreen { background:#222; display:none; }
-#menu { display:none; background:rgba(0,0,0,0.7); }
-#levelSelect, #gameOver { display:none; background:rgba(0,0,0,0.7); }
+#startScreen, #menu, #levelSelect, #gameOver, #customizeScreen { background:rgba(0,0,0,0.7); display:none; }
 
 button { padding:15px 30px; margin:10px; font-size:1em; border:none; border-radius:10px; background:#ffcc00; color:#222; cursor:pointer; transition: transform 0.2s; }
 button:hover { transform: scale(1.1); }
@@ -28,6 +26,7 @@ button:hover { transform: scale(1.1); }
 </head>
 <body>
 
+<!-- Pantallas UI -->
 <div id="loadingScreen">
   <h1 style="font-size:3em;margin-bottom:20px;">Geometry Dash 3D</h1>
   <p style="font-size:1.5em;">Hecho por: Iker</p>
@@ -40,8 +39,8 @@ button:hover { transform: scale(1.1); }
 <div id="menu">
   <h1>Geometry Dash 3D</h1>
   <button id="playBtn">Play</button>
-  <button id="settingsBtn">Settings</button>
   <button id="customizeBtn">Customize</button>
+  <button id="settingsBtn">Settings</button>
   <canvas id="menuCanvas" style="position:absolute;top:0;left:0;z-index:-1;"></canvas>
 </div>
 
@@ -53,7 +52,7 @@ button:hover { transform: scale(1.1); }
   <button id="backMenuBtn">Back</button>
 </div>
 
-<div id="customizeScreen" style="display:none; background:rgba(0,0,0,0.8); position:absolute; top:0; left:0; width:100%; height:100%; color:white; z-index:10; flex-direction:column; align-items:center; justify-content:center;">
+<div id="customizeScreen">
   <h2>Customize Player</h2>
   <label>Shape:
     <select id="shapeSelect">
@@ -91,15 +90,15 @@ button:hover { transform: scale(1.1); }
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.0/build/three.module.js';
 
 let scene, camera, renderer;
-let player, obstacles=[], portals=[], platform=null, portalTop=null;
+let player, obstacles=[];
 let speed=0.07, jumpForce=0.35, gravity=-0.010, velocityY=0;
-let isJumping=false, gameStarted=false
-let isAscending = false; // true cuando estás en el portal
-let ascendStartY = 0;    // posición Y donde comienza el ascenso
+let isJumping=false, gameStarted=false;
 let level=1, levelLength=120;
 let menuAudio=new Audio('Background.mp3'); menuAudio.loop=true;
 let levelAudio=null;
+let jumpHeld = false;
 
+// ==== UI ====
 const loadingScreen=document.getElementById('loadingScreen');
 const startScreen=document.getElementById('startScreen');
 const startBtn=document.getElementById('startBtn');
@@ -112,6 +111,7 @@ const retryBtn=document.getElementById('retryBtn');
 const menuBtn=document.getElementById('menuBtn');
 const levelBtns=document.querySelectorAll('.levelBtn');
 const progressBar=document.getElementById('progressBar');
+
 const customizeDiv = document.getElementById('customizeScreen');
 const customizeBtn = document.getElementById('customizeBtn');
 const saveCustomizationBtn = document.getElementById('saveCustomizationBtn');
@@ -175,35 +175,6 @@ startBtn.addEventListener('click', ()=>{
   initMenuAnimation();
 });
 
-// ==== CUSTOMIZATION ====
-customizeBtn.addEventListener('click', ()=>{
-  menuDiv.style.display='none';
-  customizeDiv.style.display='flex';
-
-  // Cargar personalización guardada
-  const data = JSON.parse(localStorage.getItem('playerCustomization') || '{}');
-  shapeSelect.value = data.shape || 'cube';
-  colorPicker.value = data.color || '#ff0000';
-  outlinePicker.value = data.outlineColor || '#000000';
-  outlineToggle.checked = data.outlineEnabled || false;
-});
-
-backCustomizeBtn.addEventListener('click', ()=>{
-  customizeDiv.style.display='none';
-  menuDiv.style.display='flex';
-});
-
-saveCustomizationBtn.addEventListener('click', ()=>{
-  const customization = {
-    shape: shapeSelect.value,
-    color: colorPicker.value,
-    outlineColor: outlinePicker.value,
-    outlineEnabled: outlineToggle.checked
-  };
-  localStorage.setItem('playerCustomization', JSON.stringify(customization));
-  alert('Customization saved!');
-});
-
 playBtn.addEventListener('click', ()=>{ menuDiv.style.display='none'; levelSelectDiv.style.display='flex'; });
 backMenuBtn.addEventListener('click', ()=>{ levelSelectDiv.style.display='none'; menuDiv.style.display='flex'; });
 
@@ -218,53 +189,32 @@ levelBtns.forEach(btn=>{
   });
 });
 
-let inPortalZone = false;
-
-portals.forEach(port => {
-  const px = port.position.x, py = port.position.y;
-  if (player.position.x > px - 0.5 && player.position.x < px + 0.5) {
-    inPortalZone = true;
-
-    // Entrar al portal si pasa por abajo
-    if (!isAscending && player.position.y - 0.5 < py) {
-      isAscending = true;
-      velocityY = 0;
-      ascendStartY = player.position.y;
-    }
-
-    // Muerte solo si chocas con pared arriba/abajo
-    if (isAscending) {
-      if (player.position.y + 0.5 > py + 0.5 || player.position.y - 0.5 < py - 0.5) {
-        gameOver();
-      }
-    }
-  }
+// ==== CUSTOMIZATION ====
+customizeBtn.addEventListener('click', ()=>{
+  menuDiv.style.display='none';
+  customizeDiv.style.display='flex';
+  const data = JSON.parse(localStorage.getItem('playerCustomization') || '{}');
+  shapeSelect.value = data.shape || 'cube';
+  colorPicker.value = data.color || '#ff0000';
+  outlinePicker.value = data.outlineColor || '#000000';
+  outlineToggle.checked = data.outlineEnabled || false;
 });
-
-if (!isAscending && !inPortalZone) {
-  obstacles.forEach(obs => {
-    if (player.position.x + 0.5 > obs.position.x - 0.5 &&
-        player.position.x - 0.5 < obs.position.x + 0.5) {
-      if (player.position.y - 0.5 < obs.position.y + 0.5) {
-        gameOver();
-      }
-    }
-  });
-};
-
-retryBtn.addEventListener('click', ()=>{
-  if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; levelAudio.play(); }
-  gameOverDiv.style.display='none';
-  startGame();
-});
-menuBtn.addEventListener('click', ()=>{
-  if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; }
-  menuAudio.play();
-  gameOverDiv.style.display='none';
+backCustomizeBtn.addEventListener('click', ()=>{
+  customizeDiv.style.display='none';
   menuDiv.style.display='flex';
 });
+saveCustomizationBtn.addEventListener('click', ()=>{
+  const customization = {
+    shape: shapeSelect.value,
+    color: colorPicker.value,
+    outlineColor: outlinePicker.value,
+    outlineEnabled: outlineToggle.checked
+  };
+  localStorage.setItem('playerCustomization', JSON.stringify(customization));
+  alert('Customization saved!');
+});
 
-// ==== Juego principal ====
+// ==== Juego ====
 function initGame(){
   scene=new THREE.Scene();
   camera=new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight,0.1,1000);
@@ -282,220 +232,138 @@ function initGame(){
   floor.position.set(0,-1,0);
   scene.add(floor);
 
-  // Cargar personalización
-const data = JSON.parse(localStorage.getItem('playerCustomization') || '{}');
-let geo, mat, outlineMat, outlineMesh;
+  // Personalización del jugador
+  const data = JSON.parse(localStorage.getItem('playerCustomization') || '{}');
+  let geo, mat, outlineMat, outlineMesh;
+  switch (data.shape) {
+    case 'sphere': geo = new THREE.SphereGeometry(0.6,16,16); break;
+    case 'pyramid': geo = new THREE.ConeGeometry(0.8,1.2,4); break;
+    default: geo = new THREE.BoxGeometry(1,1,1); break;
+  }
+  mat = new THREE.MeshPhongMaterial({ color: data.color || 0xff0000, transparent:true, opacity:1 });
+  player = new THREE.Mesh(geo, mat);
+  if (data.outlineEnabled) {
+    outlineMat = new THREE.MeshBasicMaterial({ color: data.outlineColor || 0x000000, side: THREE.BackSide });
+    outlineMesh = new THREE.Mesh(geo.clone(), outlineMat);
+    outlineMesh.scale.multiplyScalar(1.05);
+    player.add(outlineMesh);
+  }
+  player.position.set(-5,0.5,0);
+  scene.add(player);
 
-switch (data.shape) {
-  case 'sphere':
-    geo = new THREE.SphereGeometry(0.6, 16, 16);
-    break;
-  case 'pyramid':
-    geo = new THREE.ConeGeometry(0.8, 1.2, 4);
-    break;
-  default:
-    geo = new THREE.BoxGeometry(1,1,1);
-    break;
-}
-
-mat = new THREE.MeshPhongMaterial({ color: data.color || 0xff0000, transparent:true, opacity:1 });
-player = new THREE.Mesh(geo, mat);
-
-if (data.outlineEnabled) {
-  outlineMat = new THREE.MeshBasicMaterial({ color: data.outlineColor || 0x000000, side: THREE.BackSide });
-  outlineMesh = new THREE.Mesh(geo.clone(), outlineMat);
-  outlineMesh.scale.multiplyScalar(1.05);
-  player.add(outlineMesh);
-}
-
-player.position.set(-5, 0.5, 0);
-scene.add(player);
   generateObstaclesForLevel(level);
 
-  // Click o touch (ya lo tienes)
-window.addEventListener('mousedown', jumpPlayer);
-window.addEventListener('touchstart', jumpPlayer);
-
-window.addEventListener('keydown', (e) => {
-  if (e.code === 'Space') {
-    if (isAscending) {
-      velocityY = 0.35; // fuerza para subir en portal
-    } else {
-      jumpPlayer();     // salto normal
-    }
-  }
-});
+  // Salto mantenido
+  window.addEventListener('mousedown', () => jumpHeld = true);
+  window.addEventListener('mouseup', () => jumpHeld = false);
+  window.addEventListener('touchstart', () => jumpHeld = true);
+  window.addEventListener('touchend', () => jumpHeld = false);
+  window.addEventListener('keydown', (e) => { if (e.code === 'Space') jumpHeld = true; });
+  window.addEventListener('keyup', (e) => { if (e.code === 'Space') jumpHeld = false; });
 
   animateGame();
 }
 
-// ==== Obstáculos, plataforma y portales ====
+// ==== Obstáculos y plataformas ====
 function generateObstaclesForLevel(level){
   obstacles.forEach(obs=>scene.remove(obs)); obstacles=[];
-  portals.forEach(p=>scene.remove(p)); portals=[];
-  if(platform) scene.remove(platform); platform=null;
-  if(portalTop) scene.remove(portalTop); portalTop=null;
-
   let posX=10;
   for(let i=0;i<30;i++){
-    let type; let color=0xff0000;
-    if(level===1){ type=Math.random()<0.3?'spike':'cube'; color=0xff0000; }
-    if(level===2){ type=Math.random()<0.4?'spike':'cube'; color=0x00ffff; }
-    if(level===3){ type=Math.random()<0.5?'spike':'cube'; color=0xffff00; }
-
-    let obs; let baseY=0.5;
+    const type = Math.random()<0.3?'spike':'cube';
+    let obs;
     if(type==='cube'){
-      const geo=new THREE.BoxGeometry(1,1,1);
-      const mat=new THREE.MeshPhongMaterial({color:color});
-      obs=new THREE.Mesh(geo,mat); obs.position.y=baseY;
+      obs=new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshPhongMaterial({color:0xff0000}));
+      obs.position.y=0.5;
     } else {
-      const geo=new THREE.ConeGeometry(0.5,1,4);
-      const mat=new THREE.MeshPhongMaterial({color:0x0000ff});
-      obs=new THREE.Mesh(geo,mat);
-      obs.position.y=baseY; obs.rotation.z=Math.PI; obs.scale.y=1+Math.random();
+      obs=new THREE.Mesh(new THREE.ConeGeometry(0.5,1,4), new THREE.MeshPhongMaterial({color:0x0000ff}));
+      obs.position.y=0.5; obs.rotation.z=Math.PI;
     }
-
     posX+=5+Math.random()*4;
-    obs.position.x=posX; obs.position.z=0;
-    scene.add(obs); obstacles.push(obs);
+    obs.position.x=posX;
+    scene.add(obs);
+    obstacles.push(obs);
   }
 
-  // ==== Plataforma a mitad de nivel 1 ====
-  if(level===1){
-    platform=new THREE.Mesh(new THREE.BoxGeometry(4,0.5,4), new THREE.MeshPhongMaterial({color:0x8888ff}));
-    platform.position.set(levelLength/2,1,0);
-    scene.add(platform);
-
-    portalTop=new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshPhongMaterial({color:0xffff00}));
-    portalTop.position.set(levelLength/2,2.5,0);
-    scene.add(portalTop);
-    portals.push(portalTop);
-
-    // Portal final cerca del final
-    const portalEnd=new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshPhongMaterial({color:0x00ff00}));
-    portalEnd.position.set(levelLength-5,1,0);
-    scene.add(portalEnd); portals.push(portalEnd);
-
-    const wallTop=new THREE.Mesh(new THREE.BoxGeometry(3,1,1), new THREE.MeshPhongMaterial({color:0xff0000}));
-    wallTop.position.set(levelLength-5,2,0);
-    scene.add(wallTop); portals.push(wallTop); // solo para colisión
+  // ==== Plataformas intermedias ====
+  for (let i = 0; i < 5; i++) {
+    const plat = new THREE.Mesh(new THREE.BoxGeometry(4,0.5,4), new THREE.MeshPhongMaterial({ color: 0x8888ff }));
+    plat.position.set(15 + i * 20, Math.random() * 3 + 1, 0);
+    scene.add(plat);
+    obstacles.push(plat);
   }
 
   levelLength=posX+5;
 }
 
-function jumpPlayer() {
-  if (!isJumping && !isAscending) {
-    velocityY = jumpForce;
-    isJumping = true;
-  }
-}
-
-let finalAnim=false;
-function animateGame() {
+// ==== Animación principal ====
+function animateGame(){
   requestAnimationFrame(animateGame);
 
-  if (gameStarted) {
-    // Mover jugador horizontalmente
+  if(gameStarted){
     player.position.x += speed;
 
-    if (isAscending) {
-      // ===== Modo avión / portal =====
-      velocityY += -0.02; // gravedad más suave
-      player.position.y += velocityY;
-
-      // Colisiones con paredes del portal
-      portals.forEach(port => {
-        const px = port.position.x, py = port.position.y;
-        if (player.position.x > px - 0.5 && player.position.x < px + 0.5) {
-          if (player.position.y + 0.5 > py + 0.5 || player.position.y - 0.5 < py - 0.5) {
-            gameOver(); // choca con pared del portal
-          }
-        }
-      });
-
-    } else {
-      // ===== Movimiento normal =====
-      velocityY += gravity;
-      player.position.y += velocityY;
-
-      if (player.position.y <= 0.5) {
-        player.position.y = 0.5;
-        velocityY = 0;
-        isJumping = false;
-      }
-
-      // Colisiones normales con obstáculos
-      obstacles.forEach(obs => {
-        if (player.position.x + 0.5 > obs.position.x - 0.5 &&
-            player.position.x - 0.5 < obs.position.x + 0.5) {
-          if (player.position.y - 0.5 < obs.position.y + 0.5) {
-            gameOver();
-          }
-        }
-      });
-
-      // Colisiones con plataforma / portal a mitad de nivel
-      if (platform) {
-        const px = platform.position.x, py = platform.position.y;
-        if (player.position.x > px - 2 && player.position.x < px + 2) {
-          if (player.position.y - 0.5 < py + 0.25 && player.position.y - 0.5 > py - 0.25) {
-            isAscending = true; // entra al portal
-            velocityY = 0;
-            ascendStartY = player.position.y;
-          } else if (player.position.y + 0.5 > py + 0.25) {
-            gameOver(); // toca la parte superior de la plataforma
-          }
-        }
-      }
+    // Mantener salto
+    if (jumpHeld && player.position.y <= 0.51) {
+      velocityY = jumpForce;
+      isJumping = true;
     }
 
-    // Progress bar
+    velocityY += gravity;
+    player.position.y += velocityY;
+
+    if(player.position.y <= 0.5){
+      player.position.y = 0.5;
+      velocityY = 0;
+      isJumping = false;
+    }
+
+    // Colisiones con obstáculos
+    obstacles.forEach(obs=>{
+      if(player.position.x + 0.5 > obs.position.x - 0.5 &&
+         player.position.x - 0.5 < obs.position.x + 0.5 &&
+         player.position.y - 0.5 < obs.position.y + 0.5){
+        gameOver();
+      }
+    });
+
+    // Progreso
     let progress = (player.position.x + 5) / levelLength;
-    if (progress > 1) progress = 1;
+    if(progress > 1) progress = 1;
     progressBar.style.width = (progress * 100) + '%';
 
-    // Cámara lateral 2D con zoom
+    // Cámara lateral
     camera.position.x = player.position.x;
     camera.position.y = 3;
     camera.position.z = 20;
     camera.lookAt(player.position.x, player.position.y, 0);
-
-    // ===== Final del nivel =====
-    if (player.position.x >= levelLength && !finalAnim) {
-      finalAnim = true;
-      gameStarted = false;
-      velocityY = 0;
-    }
-
-    // Animación final: cubo gira y sube con transparencia
-    if (finalAnim) {
-      player.rotation.z += 0.2;
-      player.position.y += 0.1;
-      player.material.opacity -= 0.01;
-      if (player.material.opacity <= 0) player.material.opacity = 0;
-    }
   }
 
   renderer.render(scene, camera);
 }
 
+// ==== Game Over / Start ====
 function gameOver(){
   gameStarted=false;
-  finalAnim=false;
-  player.material.opacity=1;
   gameOverDiv.style.display='flex';
-  levelAudio.pause()
+  if(levelAudio) levelAudio.pause();
 }
+retryBtn.addEventListener('click', ()=>{
+  if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; levelAudio.play(); }
+  gameOverDiv.style.display='none';
+  startGame();
+});
+menuBtn.addEventListener('click', ()=>{
+  if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; }
+  menuAudio.play();
+  gameOverDiv.style.display='none';
+  menuDiv.style.display='flex';
+});
 
 function startGame(){
   gameOverDiv.style.display='none';
-  finalAnim=false;
   if(!scene) initGame();
   player.position.set(-5,0.5,0);
-  velocityY=0; isJumping=false; gameStarted=true; isAscending=false;
-  player.material.opacity=1;
-  generateObstaclesForLevel(level);
+  velocityY=0; isJumping=false; gameStarted=true;
 }
 </script>
 </body>
