@@ -97,6 +97,7 @@ let level=1, levelLength=120;
 let menuAudio=new Audio('Background.mp3'); menuAudio.loop=true;
 let levelAudio=null;
 let jumpHeld = false;
+let platforms = [];
 
 // ==== UI ====
 const loadingScreen=document.getElementById('loadingScreen');
@@ -284,13 +285,16 @@ function generateObstaclesForLevel(level){
     obstacles.push(obs);
   }
 
-  // ==== Plataformas intermedias ====
-  for (let i = 0; i < 5; i++) {
-    const plat = new THREE.Mesh(new THREE.BoxGeometry(4,0.5,4), new THREE.MeshPhongMaterial({ color: 0x8888ff }));
-    plat.position.set(15 + i * 20, Math.random() * 3 + 1, 0);
-    scene.add(plat);
-    obstacles.push(plat);
-  }
+// Plataformas intermedias
+for (let i = 0; i < 5; i++) {
+  const plat = new THREE.Mesh(
+    new THREE.BoxGeometry(4,0.5,4),
+    new THREE.MeshPhongMaterial({ color: 0x8888ff })
+  );
+  plat.position.set(15 + i * 20, Math.random() * 3 + 1, 0);
+  scene.add(plat);
+  platforms.push(plat); // plataformas separadas
+}
 
   levelLength=posX+5;
 }
@@ -301,6 +305,22 @@ function animateGame(){
 
   if(gameStarted){
     player.position.x += speed;
+
+    // ===== COLISION CON PLATAFORMAS =====
+platforms.forEach(plat => {
+  const dx = player.position.x - plat.position.x;
+  const dz = player.position.z - plat.position.z;
+  const dy = (player.position.y - 0.5) - (plat.position.y + 0.25); // abajo del cubo - arriba de plataforma
+
+  if(Math.abs(dx) < 2 && Math.abs(dz) < 2){ // dentro del área X/Z de la plataforma
+    if(dy <= 0 && dy > -0.2 && velocityY <= 0){ 
+      // aterriza sobre la plataforma
+      player.position.y = plat.position.y + 0.5 + 0.25; 
+      velocityY = 0;
+      isJumping = false;
+    }
+  }
+});
 
     // Mantener salto
     if (jumpHeld && player.position.y <= 0.51) {
