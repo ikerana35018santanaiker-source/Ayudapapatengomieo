@@ -1,411 +1,449 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Geometry Dash 3D</title>
-<style>
-body, html { margin:0; padding:0; overflow:hidden; background:#222; font-family:sans-serif; }
-canvas { display:block; }
-
-#loadingScreen, #startScreen, #menu, #levelSelect, #gameOver, #customizeScreen { 
-  position:absolute; top:0; left:0; width:100%; height:100%; 
-  display:flex; justify-content:center; align-items:center; flex-direction:column; 
-  color:white; z-index:10; 
-}
-#loadingScreen { background:#222; z-index:20; transition: opacity 1s ease; }
-#loadingScreen.hidden { opacity:0; pointer-events:none; }
-#startScreen, #menu, #levelSelect, #gameOver, #customizeScreen { background:rgba(0,0,0,0.7); display:none; }
-
-button { padding:15px 30px; margin:10px; font-size:1em; border:none; border-radius:10px; background:#ffcc00; color:#222; cursor:pointer; transition: transform 0.2s; }
-button:hover { transform: scale(1.1); }
-
-#progressContainer { position:absolute; top:10px; left:10px; width:80%; height:20px; background:#555; border-radius:10px; z-index:15; }
-#progressBar { width:0%; height:100%; background:#ffcc00; border-radius:10px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometry Dash Lite - Playable 3D</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        #game-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 2em;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+            pointer-events: none;
+        }
+        
+        #attempts {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            font-size: 1.2em;
+            color: #ff00ff;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+        
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            pointer-events: all;
+        }
+        
+        #instructions h1 {
+            font-size: 3em;
+            background: linear-gradient(45deg, #00ffff, #ff00ff, #ffff00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
+        
+        #instructions p {
+            font-size: 1.3em;
+            margin: 15px 0;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 40px;
+            background: linear-gradient(45deg, #00ffff, #ff00ff);
+            color: #000;
+            font-weight: bold;
+            border-radius: 50px;
+            margin: 10px;
+            cursor: pointer;
+            border: none;
+            font-size: 1.2em;
+            transition: all 0.3s ease;
+            pointer-events: all;
+        }
+        
+        .btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #ff0000;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+            display: none;
+            pointer-events: all;
+        }
+        
+        #game-over h2 {
+            font-size: 3em;
+            color: #ff0000;
+            margin-bottom: 20px;
+        }
+        
+        #final-score {
+            font-size: 2em;
+            color: #00ffff;
+            margin: 20px 0;
+        }
+        
+        #best-score {
+            font-size: 1.5em;
+            color: #ffff00;
+            margin: 10px 0;
+        }
+    </style>
 </head>
 <body>
+    <div id="game-container"></div>
+    
+    <div id="ui-overlay">
+        <div id="score">Progress: 0%</div>
+        <div id="attempts">Attempts: 1</div>
+        
+        <div id="instructions">
+            <h1>GEOMETRY DASH</h1>
+            <p>ðŸŽ® Press SPACE or CLICK to jump</p>
+            <p>ðŸŽµ Move to the rhythm</p>
+            <p>âš ï¸ Avoid the spikes!</p>
+            <button class="btn" onclick="startGame()">PLAY NOW</button>
+        </div>
+        
+        <div id="game-over">
+            <h2>GAME OVER</h2>
+            <div id="final-score">Progress: 0%</div>
+            <div id="best-score">Best: 0%</div>
+            <button class="btn" onclick="restartGame()">TRY AGAIN</button>
+        </div>
+    </div>
 
-<!-- Pantallas UI -->
-<div id="loadingScreen">
-  <h1 style="font-size:3em;margin-bottom:20px;">Geometry Dash 3D</h1>
-  <p style="font-size:1.5em;">Hecho por: Iker</p>
-</div>
-
-<div id="startScreen">
-  <button id="startBtn" style="font-size:2em;padding:20px 40px;">Empezar</button>
-</div>
-
-<div id="menu">
-  <h1>Geometry Dash 3D</h1>
-  <button id="playBtn">Play</button>
-  <button id="customizeBtn">Customize</button>
-  <button id="settingsBtn">Settings</button>
-  <canvas id="menuCanvas" style="position:absolute;top:0;left:0;z-index:-1;"></canvas>
-</div>
-
-<div id="levelSelect">
-  <h2>Select Level</h2>
-  <button class="levelBtn" data-level="1">Level 1</button>
-  <button class="levelBtn" data-level="2">Level 2</button>
-  <button class="levelBtn" data-level="3">Level 3</button>
-  <button id="backMenuBtn">Back</button>
-</div>
-
-<div id="customizeScreen">
-  <h2>Customize Player</h2>
-  <label>Shape:
-    <select id="shapeSelect">
-      <option value="cube">Cube</option>
-      <option value="sphere">Sphere</option>
-      <option value="pyramid">Pyramid</option>
-    </select>
-  </label>
-  <br>
-  <label>Color:
-    <input type="color" id="colorPicker" value="#ff0000">
-  </label>
-  <br>
-  <label>Outline Color:
-    <input type="color" id="outlinePicker" value="#000000">
-  </label>
-  <br>
-  <label><input type="checkbox" id="outlineToggle"> Enable Outline</label>
-  <br><br>
-  <button id="saveCustomizationBtn">Save</button>
-  <button id="backCustomizeBtn">Back</button>
-</div>
-
-<div id="gameOver">
-  <h2>Game Over</h2>
-  <button id="retryBtn">Retry</button>
-  <button id="menuBtn">Menu</button>
-</div>
-
-<div id="progressContainer">
-  <div id="progressBar"></div>
-</div>
-
-<script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.0/build/three.module.js';
-
-let scene, camera, renderer;
-let player, obstacles=[];
-let speed=0.11, jumpForce=0.35, gravity=-0.010, velocityY=0;
-let isJumping=false, gameStarted=false;
-let level=1, levelLength=120;
-let menuAudio=new Audio('Background.mp3'); menuAudio.loop=true;
-let levelAudio=null;
-let jumpHeld = false;
-let platforms = [];
-
-// ==== UI ====
-const loadingScreen=document.getElementById('loadingScreen');
-const startScreen=document.getElementById('startScreen');
-const startBtn=document.getElementById('startBtn');
-const menuDiv=document.getElementById('menu');
-const levelSelectDiv=document.getElementById('levelSelect');
-const gameOverDiv=document.getElementById('gameOver');
-const playBtn=document.getElementById('playBtn');
-const backMenuBtn=document.getElementById('backMenuBtn');
-const retryBtn=document.getElementById('retryBtn');
-const menuBtn=document.getElementById('menuBtn');
-const levelBtns=document.querySelectorAll('.levelBtn');
-const progressBar=document.getElementById('progressBar');
-
-const customizeDiv = document.getElementById('customizeScreen');
-const customizeBtn = document.getElementById('customizeBtn');
-const saveCustomizationBtn = document.getElementById('saveCustomizationBtn');
-const backCustomizeBtn = document.getElementById('backCustomizeBtn');
-const shapeSelect = document.getElementById('shapeSelect');
-const colorPicker = document.getElementById('colorPicker');
-const outlinePicker = document.getElementById('outlinePicker');
-const outlineToggle = document.getElementById('outlineToggle');
-
-// ==== Menú animado ====
-let menuScene, menuCamera, menuRenderer, menuCube, menuObstacles=[];
-function initMenuAnimation(){
-  const canvas=document.getElementById('menuCanvas');
-  menuScene=new THREE.Scene();
-  menuCamera=new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight,0.1,1000);
-  menuRenderer=new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
-  menuRenderer.setSize(window.innerWidth, window.innerHeight);
-  const light=new THREE.DirectionalLight(0xffffff,1);
-  light.position.set(5,10,5);
-  menuScene.add(light);
-  const cubeGeo=new THREE.BoxGeometry(1,1,1);
-  const cubeMat=new THREE.MeshPhongMaterial({color:0xff0000});
-  menuCube=new THREE.Mesh(cubeGeo,cubeMat);
-  menuCube.position.set(-5,0.5,0);
-  menuScene.add(menuCube);
-  for(let i=0;i<10;i++){
-    const geo=new THREE.BoxGeometry(1,1,1);
-    const mat=new THREE.MeshPhongMaterial({color:0x00ff00});
-    const obs=new THREE.Mesh(geo,mat);
-    obs.position.set(i*5+5,0.5,0);
-    menuScene.add(obs);
-    menuObstacles.push(obs);
-  }
-  menuCamera.position.set(-10,5,10);
-  menuCamera.lookAt(menuCube.position);
-  animateMenu();
-}
-let menuVelocityY=0;
-function animateMenu(){
-  requestAnimationFrame(animateMenu);
-  menuVelocityY+=-0.01;
-  menuCube.position.y+=menuVelocityY;
-  if(menuCube.position.y<=0.5){ menuCube.position.y=0.5; menuVelocityY=0.2; }
-  menuObstacles.forEach(obs=>{
-    obs.position.x-=speed/2;
-    if(obs.position.x<-10) obs.position.x+=50;
-  });
-  menuRenderer.render(menuScene,menuCamera);
-}
-
-// ==== Eventos UI ====
-window.addEventListener('load', ()=>{
-  loadingScreen.classList.add('hidden');
-  setTimeout(()=>{ loadingScreen.style.display='none'; startScreen.style.display='flex'; },1000);
-});
-
-startBtn.addEventListener('click', ()=>{
-  startScreen.style.display='none';
-  menuDiv.style.display='flex';
-  menuAudio.play();
-  initMenuAnimation();
-});
-
-playBtn.addEventListener('click', ()=>{ menuDiv.style.display='none'; levelSelectDiv.style.display='flex'; });
-backMenuBtn.addEventListener('click', ()=>{ levelSelectDiv.style.display='none'; menuDiv.style.display='flex'; });
-
-levelBtns.forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    level=parseInt(btn.dataset.level);
-    menuAudio.pause(); menuAudio.currentTime=0;
-    if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; }
-    levelAudio=new Audio(`Level${level}.mp3`); levelAudio.loop=true; levelAudio.play();
-    levelSelectDiv.style.display='none';
-    startGame();
-  });
-});
-
-// ==== CUSTOMIZATION ====
-customizeBtn.addEventListener('click', ()=>{
-  menuDiv.style.display='none';
-  customizeDiv.style.display='flex';
-  const data = JSON.parse(localStorage.getItem('playerCustomization') || '{}');
-  shapeSelect.value = data.shape || 'cube';
-  colorPicker.value = data.color || '#ff0000';
-  outlinePicker.value = data.outlineColor || '#000000';
-  outlineToggle.checked = data.outlineEnabled || false;
-});
-backCustomizeBtn.addEventListener('click', ()=>{
-  customizeDiv.style.display='none';
-  menuDiv.style.display='flex';
-});
-saveCustomizationBtn.addEventListener('click', ()=>{
-  const customization = {
-    shape: shapeSelect.value,
-    color: colorPicker.value,
-    outlineColor: outlinePicker.value,
-    outlineEnabled: outlineToggle.checked
-  };
-  localStorage.setItem('playerCustomization', JSON.stringify(customization));
-  alert('Customization saved!');
-});
-
-// ==== Juego ====
-function initGame(){
-  scene=new THREE.Scene();
-  camera=new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight,0.1,1000);
-  renderer=new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(window.innerWidth,window.innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  const light=new THREE.DirectionalLight(0xffffff,1);
-  light.position.set(5,10,5);
-  scene.add(light);
-
-  const floorGeo=new THREE.BoxGeometry(1000,1,10);
-  const floorMat=new THREE.MeshPhongMaterial({color:0x444444});
-  const floor=new THREE.Mesh(floorGeo,floorMat);
-  floor.position.set(0,-1,0);
-  scene.add(floor);
-
-  // Personalización del jugador
-  const data = JSON.parse(localStorage.getItem('playerCustomization') || '{}');
-  let geo, mat, outlineMat, outlineMesh;
-  switch (data.shape) {
-    case 'sphere': geo = new THREE.SphereGeometry(0.6,16,16); break;
-    case 'pyramid': geo = new THREE.ConeGeometry(0.8,1.2,4); break;
-    default: geo = new THREE.BoxGeometry(1,1,1); break;
-  }
-  mat = new THREE.MeshPhongMaterial({ color: data.color || 0xff0000, transparent:true, opacity:1 });
-  player = new THREE.Mesh(geo, mat);
-  if (data.outlineEnabled) {
-    outlineMat = new THREE.MeshBasicMaterial({ color: data.outlineColor || 0x000000, side: THREE.BackSide });
-    outlineMesh = new THREE.Mesh(geo.clone(), outlineMat);
-    outlineMesh.scale.multiplyScalar(1.05);
-    player.add(outlineMesh);
-  }
-  player.position.set(-5,0.5,0);
-  scene.add(player);
-
-  generateObstaclesForLevel(level);
-
-  // Salto mantenido
-  window.addEventListener('mousedown', () => jumpHeld = true);
-  window.addEventListener('mouseup', () => jumpHeld = false);
-  window.addEventListener('touchstart', () => jumpHeld = true);
-  window.addEventListener('touchend', () => jumpHeld = false);
-  window.addEventListener('keydown', (e) => { if (e.code === 'Space') jumpHeld = true; });
-  window.addEventListener('keyup', (e) => { if (e.code === 'Space') jumpHeld = false; });
-
-  animateGame();
-}
-
-// ==== Obstáculos y plataformas ====
-function generateObstaclesForLevel(level){
-  obstacles.forEach(obs=>scene.remove(obs)); obstacles=[];
-  let posX=10;
-  for(let i=0;i<30;i++){
-    const type = Math.random()<0.3?'spike':'cube';
-    let obs;
-    if(type==='cube'){
-      obs=new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshPhongMaterial({color:0xff0000}));
-      obs.position.y=0.5;
-    } else {
-      obs=new THREE.Mesh(new THREE.ConeGeometry(0.5,1,4), new THREE.MeshPhongMaterial({color:0x0000ff}));
-      obs.position.y=0.5; obs.rotation.z=Math.PI;
-    }
-    posX+=5+Math.random()*4;
-    obs.position.x=posX;
-    scene.add(obs);
-    obstacles.push(obs);
-  }
-  
-let lastX = 5;       // posición X inicial
-let lastY = 0.5;     // altura del primer bloque (suelo)
-for (let i = 0; i < 30; i++) {
-  const plat = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 1, 1), // tamaño igual al jugador
-    new THREE.MeshPhongMaterial({ color: 0x8888ff })
-  );
-  plat.position.x = lastX + 1;  // pegado al anterior
-  // solo aumenta 1 bloque de altura como máximo
-  const deltaY = Math.random() < 0.5 ? 0 : 1;
-  plat.position.y = lastY + deltaY;
-  lastY = plat.position.y;
-  lastX = plat.position.x;
-
-  scene.add(plat);
-  platforms.push(plat);
-}
-levelLength = lastX + 5;
-
-
-  levelLength=posX+5;
-}
-
-// ==== Animación principal ====
-function animateGame(){
-  requestAnimationFrame(animateGame);
-
-  if(gameStarted){
-    player.position.x += speed;
-
-    // ===== COLISION CON PLATAFORMAS =====
-platforms.forEach(plat => {
-  const dx = player.position.x - plat.position.x;
-  const dz = player.position.z - plat.position.z;
-  const dy = (player.position.y - 0.5) - (plat.position.y + 0.5/2); // abajo del cubo - mitad de plataforma
-
-  if(Math.abs(dx) < 0.5 && Math.abs(dz) < 0.5){ // dentro del área X/Z de la plataforma
-    if(dy <= 0 && dy > -0.1 && velocityY <= 0){ 
-      // aterriza sobre la plataforma
-      player.position.y = plat.position.y + 0.5; 
-      velocityY = 0;
-      isJumping = false;
-    }
-  }
-});
-
-
-    // Mantener salto
-    if (jumpHeld && player.position.y <= 0.51) {
-      velocityY = jumpForce;
-      isJumping = true;
-    }
-
-    velocityY += gravity;
-    player.position.y += velocityY;
-
-    if(player.position.y <= 0.5){
-      player.position.y = 0.5;
-      velocityY = 0;
-      isJumping = false;
-    }
-
-    // Colisiones con obstáculos
-    obstacles.forEach(obs=>{
-      if(player.position.x + 0.5 > obs.position.x - 0.5 &&
-         player.position.x - 0.5 < obs.position.x + 0.5 &&
-         player.position.y - 0.5 < obs.position.y + 0.5){
-        gameOver();
-      }
-    });
-
-    // Progreso
-    let progress = (player.position.x + 5) / levelLength;
-    if(progress > 1) progress = 1;
-    progressBar.style.width = (progress * 100) + '%';
-
-    // Cámara lateral
-    camera.position.x = player.position.x;
-    camera.position.y = 3;
-    camera.position.z = 20;
-    camera.lookAt(player.position.x, player.position.y, 0);
-  }
-
-  renderer.render(scene, camera);
-}
-
-// ==== Game Over / Start ====
-function gameOver(){
-  gameStarted=false;
-  gameOverDiv.style.display='flex';
-  if(levelAudio) levelAudio.pause();
-}
-retryBtn.addEventListener('click', ()=>{
-  if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; levelAudio.play(); }
-  gameOverDiv.style.display='none';
-  startGame();
-});
-menuBtn.addEventListener('click', ()=>{
-  if(levelAudio){ levelAudio.pause(); levelAudio.currentTime=0; }
-  menuAudio.play();
-  gameOverDiv.style.display='none';
-  menuDiv.style.display='flex';
-});
-
-function startGame(){
-  gameOverDiv.style.display='none';
-  if(!scene) initGame();
-
-  // Ajustar el jugador sobre la primera plataforma
-  if(platforms && platforms.length > 0){
-    player.position.x = platforms[0].position.x;
-    player.position.y = platforms[0].position.y + 0.5; // medio cubo
-  } else {
-    player.position.set(-5,0.5,0);
-  }
-
-  velocityY = 0; 
-  isJumping = false; 
-  gameStarted = true;
-}
-</script>
+    <script>
+        let scene, camera, renderer;
+        let player, ground = [];
+        let obstacles = [];
+        let particles = [];
+        let isJumping = false;
+        let velocity = 0;
+        let gravity = -0.80;
+        let gameSpeed = 0.1;
+        let gameStarted = false;
+        let gameOver = false;
+        let distance = 0;
+        let attempts = 1;
+        let bestScore = 0;
+        let spawnTimer = 0;
+        let spawnInterval = 40;
+        
+        const GROUND_Y = -5;
+        const JUMP_POWER = 0.35;
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x000000, 20, 80);
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 10);
+            camera.lookAt(0, 0, 0);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x0a0a0a);
+            document.getElementById('game-container').appendChild(renderer.domElement);
+            
+            // Create player cube
+            const playerGeometry = new THREE.BoxGeometry(1, 1, 1);
+            const playerMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                wireframe: false
+            });
+            player = new THREE.Mesh(playerGeometry, playerMaterial);
+            player.position.set(-5, GROUND_Y + 0.5, 0);
+            scene.add(player);
+            
+            // Add player glow
+            const glowGeometry = new THREE.BoxGeometry(1.3, 1.3, 1.3);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.3,
+                wireframe: true
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            player.add(glow);
+            
+            // Create ground
+            for (let i = 0; i < 100; i++) {
+                const groundGeometry = new THREE.BoxGeometry(2, 0.5, 2);
+                const groundMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x333333,
+                    wireframe: true
+                });
+                const groundPiece = new THREE.Mesh(groundGeometry, groundMaterial);
+                groundPiece.position.set(i * 2 - 20, GROUND_Y, 0);
+                scene.add(groundPiece);
+                ground.push(groundPiece);
+            }
+            
+            // Add background particles
+            for (let i = 0; i < 200; i++) {
+                const size = Math.random() * 0.3 + 0.1;
+                const particleGeometry = new THREE.BoxGeometry(size, size, size);
+                const particleMaterial = new THREE.MeshBasicMaterial({
+                    color: Math.random() > 0.5 ? 0x00ffff : 0xff00ff,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                particle.position.set(
+                    (Math.random() - 0.5) * 50,
+                    Math.random() * 20 - 5,
+                    (Math.random() - 0.5) * 20 - 10
+                );
+                particle.userData.speed = Math.random() * 0.02 + 0.01;
+                scene.add(particle);
+                particles.push(particle);
+            }
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            
+            animate();
+        }
+        
+        function spawnObstacle() {
+            const types = ['spike', 'block', 'tall'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            let obstacle;
+            if (type === 'spike') {
+                const geometry = new THREE.ConeGeometry(0.5, 1.5, 4);
+                const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                obstacle = new THREE.Mesh(geometry, material);
+                obstacle.position.set(20, GROUND_Y + 0.75, 0);
+                obstacle.rotation.y = Math.PI / 4;
+            } else if (type === 'block') {
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                const material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+                obstacle = new THREE.Mesh(geometry, material);
+                obstacle.position.set(20, GROUND_Y + 0.5, 0);
+            } else {
+                const geometry = new THREE.BoxGeometry(0.8, 3, 0.8);
+                const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+                obstacle = new THREE.Mesh(geometry, material);
+                obstacle.position.set(20, GROUND_Y + 1.5, 0);
+            }
+            
+            scene.add(obstacle);
+            obstacles.push(obstacle);
+        }
+        
+        function checkCollision() {
+            for (let obstacle of obstacles) {
+                const dx = player.position.x - obstacle.position.x;
+                const dy = player.position.y - obstacle.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 1) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function jump() {
+            if (!isJumping && gameStarted && !gameOver) {
+                isJumping = true;
+                velocity = JUMP_POWER;
+            }
+        }
+        
+        function startGame() {
+            document.getElementById('instructions').style.display = 'none';
+            gameStarted = true;
+            gameOver = false;
+        }
+        
+        function restartGame() {
+            document.getElementById('game-over').style.display = 'none';
+            gameStarted = true;
+            gameOver = false;
+            attempts++;
+            distance = 0;
+            
+            player.position.y = GROUND_Y + 0.5;
+            velocity = 0;
+            isJumping = false;
+            
+            // Clear obstacles
+            obstacles.forEach(obs => scene.remove(obs));
+            obstacles = [];
+            spawnTimer = 0;
+            
+            document.getElementById('attempts').textContent = `Attempts: ${attempts}`;
+        }
+        
+        function endGame() {
+            gameOver = true;
+            gameStarted = false;
+            
+            const progress = Math.floor(distance / 2);
+            if (progress > bestScore) {
+                bestScore = progress;
+            }
+            
+            document.getElementById('final-score').textContent = `Progress: ${progress}%`;
+            document.getElementById('best-score').textContent = `Best: ${bestScore}%`;
+            document.getElementById('game-over').style.display = 'block';
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (gameStarted && !gameOver) {
+                // Update player physics
+                velocity += gravity * 0.016;
+                player.position.y += velocity;
+                
+                // Ground collision
+                if (player.position.y <= GROUND_Y + 0.5) {
+                    player.position.y = GROUND_Y + 0.5;
+                    velocity = 0;
+                    isJumping = false;
+                }
+                
+                // Rotate player
+                player.rotation.z -= 0.1;
+                
+                // Move ground
+                ground.forEach(piece => {
+                    piece.position.x -= gameSpeed;
+                    if (piece.position.x < -20) {
+                        piece.position.x += 200;
+                    }
+                });
+                
+                // Move obstacles
+                obstacles.forEach((obstacle, index) => {
+                    obstacle.position.x -= gameSpeed;
+                    obstacle.rotation.y += 0.05;
+                    
+                    if (obstacle.position.x < -15) {
+                        scene.remove(obstacle);
+                        obstacles.splice(index, 1);
+                    }
+                });
+                
+                // Spawn obstacles
+                spawnTimer++;
+                if (spawnTimer > spawnInterval) {
+                    spawnObstacle();
+                    spawnTimer = 0;
+                    spawnInterval = Math.random() * 30 + 30;
+                }
+                
+                // Update distance
+                distance += gameSpeed;
+                const progress = Math.min(Math.floor(distance / 2), 100);
+                document.getElementById('score').textContent = `Progress: ${progress}%`;
+                
+                // Check collision
+                if (checkCollision()) {
+                    endGame();
+                }
+                
+                // Gradually increase speed
+                if (distance % 100 < gameSpeed) {
+                    gameSpeed += 0.001;
+                }
+            }
+            
+            // Animate background particles
+            particles.forEach(particle => {
+                particle.position.x -= particle.userData.speed;
+                particle.rotation.x += 0.01;
+                particle.rotation.y += 0.01;
+                
+                if (particle.position.x < -25) {
+                    particle.position.x = 25;
+                }
+            });
+            
+            // Camera slight movement
+            camera.position.y = 2 + Math.sin(Date.now() * 0.001) * 0.3;
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                jump();
+            }
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (gameStarted && !gameOver) {
+                jump();
+            }
+        });
+        
+        document.addEventListener('touchstart', (e) => {
+            if (gameStarted && !gameOver) {
+                e.preventDefault();
+                jump();
+            }
+        });
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        init();
+    </script>
 </body>
-</html>
 </html>
